@@ -2,32 +2,105 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useRef, useState, type DragEvent } from "react";
 import DashboardNavbar from "../../../components/DashboardNavbar";
+import { DuplicateInvoiceError, saveInvoice } from "../../../../lib/invoices";
+import { MAX_INVOICE_PAGES } from "../../../../lib/scanInvoice";
+import { supabase } from "../../../../lib/supabase";
+import type { ScannedInvoice } from "../../../api/scan-invoice/route";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "application/pdf"];
-const PROCESSING_MS = 2000;
+// Longest edge sent to Claude; larger photos would be downscaled by the API anyway.
+const MAX_IMAGE_EDGE = 1568;
 
-// Placeholder result until the invoice is actually read by the Claude API.
-const EXTRACTED = {
-  supplier: "Makro Samui",
-  date: "26 Sep 2026",
-  products: [
-    { name: "Chicken breast", quantity: "10 kg", unitPrice: 147 },
-    { name: "Jasmine rice", quantity: "25 kg", unitPrice: 36 },
-    { name: "Cooking oil", quantity: "6 litre", unitPrice: 61 },
-    { name: "Fresh lime", quantity: "4 kg", unitPrice: 55 },
-  ],
+const fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+
+// "collecting": pages are being added, nothing has been read yet.
+type Phase = "collecting" | "processing" | "done" | "error";
+
+type InvoicePage = {
+  id: string;
+  name: string;
+  mediaType: "image/jpeg" | "application/pdf";
+  /** Shrunk JPEG or the original PDF, as a data URL. */
+  dataUrl: string;
 };
-const parseQty = (q: string) => Number(q.split(" ")[0]);
-const EXTRACTED_TOTAL = EXTRACTED.products.reduce((s, p) => s + parseQty(p.quantity) * p.unitPrice, 0);
-const fmt = (n: number) => n.toLocaleString("en-US");
-
-type Phase = "idle" | "processing" | "done";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const toIso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const isValidPastDate = (s: string | null): s is string =>
+  !!s && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s)) && s <= toIso(new Date());
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+// Phone photos are often 5-10MB, above Claude's 5MB image limit: shrink to a JPEG data URL.
+async function shrinkImage(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#fff"; // transparent PNGs
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return canvas.toDataURL("image/jpeg", 0.85);
+}
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function toInvoicePage(file: File): Promise<InvoicePage> {
+  const isPdf = file.type === "application/pdf";
+  return {
+    id: crypto.randomUUID(),
+    name: file.name,
+    mediaType: isPdf ? "application/pdf" : "image/jpeg",
+    dataUrl: isPdf ? await readAsDataUrl(file) : await shrinkImage(file),
+  };
+}
+
+async function scanInvoice(pages: InvoicePage[], signal: AbortSignal): Promise<ScannedInvoice> {
+  const { data } = await supabase.auth.getSession();
+  const res = await fetch("/api/scan-invoice", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${data.session?.access_token ?? ""}`,
+    },
+    body: JSON.stringify({ pages: pages.map((p) => ({ data: p.dataUrl, mediaType: p.mediaType })) }),
+    signal,
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.error ?? "Something went wrong while reading your invoice.");
+  return body as ScannedInvoice;
+}
+
+function TextField({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label htmlFor={id} className="block font-medium text-teal-900/60">
+        {label}
+      </label>
+      <input
+        id={id}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Not found, please type it"
+        className="mt-1 w-full rounded-lg border border-teal-200 px-3 py-2 font-semibold text-teal-950 placeholder:font-normal placeholder:text-gray-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
+      />
+    </div>
+  );
+}
 
 function InvoiceDateField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
@@ -52,64 +125,198 @@ function InvoiceDateField({ value, onChange }: { value: string; onChange: (v: st
   );
 }
 
+function PageThumbnail({
+  page,
+  number,
+  onRemove,
+}: {
+  page: InvoicePage;
+  number: number;
+  onRemove?: () => void;
+}) {
+  return (
+    <li className="relative aspect-[3/4] overflow-hidden rounded-xl border border-teal-100 bg-teal-50">
+      {page.mediaType === "image/jpeg" ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={page.dataUrl} alt={`Page ${number} of your invoice`} className="h-full w-full object-cover" />
+      ) : (
+        <div className="flex h-full flex-col items-center justify-center gap-2 px-2 text-teal-700">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10" aria-hidden>
+            <path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7l-4-4Z" />
+            <path d="M14 3v4h4M9 12h6M9 16h6" />
+          </svg>
+          <p className="w-full truncate text-center text-xs font-medium">{page.name}</p>
+        </div>
+      )}
+      <span className="absolute bottom-2 left-2 rounded-full bg-teal-950/80 px-2 py-0.5 text-xs font-semibold text-white">
+        Page {number}
+      </span>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove page ${number}`}
+          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-teal-950 shadow transition hover:bg-red-50 hover:text-red-600"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="h-4 w-4" aria-hidden>
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+    </li>
+  );
+}
+
 export default function ScanInvoicePage() {
+  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [phase, setPhase] = useState<Phase>("idle");
+  const scanRef = useRef<AbortController | null>(null);
+  const [pages, setPages] = useState<InvoicePage[]>([]);
+  const [preparing, setPreparing] = useState(false);
+  const [phase, setPhase] = useState<Phase>("collecting");
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The official invoice date (not the scan date); defaults to today, editable.
   const [invoiceDate, setInvoiceDate] = useState(() => toIso(new Date()));
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [extracted, setExtracted] = useState<ScannedInvoice | null>(null);
+  // Editable, so the owner can fix anything Sabai misread.
+  const [supplier, setSupplier] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  // Typed by the owner only when Sabai couldn't find the total line.
+  const [manualTotal, setManualTotal] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Simulated reading step.
-  useEffect(() => {
-    if (phase !== "processing") return;
-    const t = setTimeout(() => setPhase("done"), PROCESSING_MS);
-    return () => clearTimeout(t);
-  }, [phase]);
+  const products = extracted?.products ?? [];
+  // The total printed on the invoice (after VAT and discounts), never the sum of the lines.
+  const totalFound = extracted?.invoice_total != null;
+  const total = totalFound ? extracted!.invoice_total! : manualTotal.trim() === "" ? null : Number(manualTotal);
+  const totalValid = total !== null && Number.isFinite(total) && total >= 0;
+  const canSave =
+    phase === "done" &&
+    !saving &&
+    supplier.trim() !== "" &&
+    invoiceNumber.trim() !== "" &&
+    products.length > 0 &&
+    totalValid;
+  const canEditPages = phase !== "processing" && !saving;
+  const canAddPage = canEditPages && !preparing && pages.length < MAX_INVOICE_PAGES;
 
-  function accept(f: File | undefined) {
-    if (!f) return;
-    if (!ACCEPTED_TYPES.includes(f.type)) {
+  // Any change to the pages makes an earlier reading out of date.
+  function clearReading() {
+    scanRef.current?.abort();
+    setPhase("collecting");
+    setScanError(null);
+    setSaveError(null);
+    setExtracted(null);
+    setManualTotal("");
+  }
+
+  async function addFiles(files: File[]) {
+    if (files.length === 0) return;
+    const room = MAX_INVOICE_PAGES - pages.length;
+    if (room <= 0) {
+      setError(`An invoice can have up to ${MAX_INVOICE_PAGES} pages.`);
+      return;
+    }
+    if (files.some((f) => !ACCEPTED_TYPES.includes(f.type))) {
       setError("This file type isn't supported. Please choose a JPG, PNG or PDF.");
       return;
     }
-    if (f.size > MAX_BYTES) {
-      setError("This file is larger than 10MB. Please choose a smaller one.");
+    if (files.some((f) => f.size > MAX_BYTES)) {
+      setError("A file is larger than 10MB. Please choose a smaller one.");
       return;
     }
-    setError(null);
-    setFile(f);
-    setPreviewUrl(null);
-    if (f.type !== "application/pdf") {
-      // Data URL rather than an object URL, so there is nothing to revoke.
-      const reader = new FileReader();
-      reader.onload = () => setPreviewUrl(reader.result as string);
-      reader.readAsDataURL(f);
+    setError(files.length > room ? `Only the first ${plural(room, "file")} were added: an invoice can have up to ${MAX_INVOICE_PAGES} pages.` : null);
+
+    setPreparing(true);
+    try {
+      const added = await Promise.all(files.slice(0, room).map(toInvoicePage));
+      setPages((prev) => [...prev, ...added].slice(0, MAX_INVOICE_PAGES));
+      clearReading();
+    } catch {
+      setError("We couldn't open one of these files. Please try another photo.");
+    } finally {
+      setPreparing(false);
     }
+  }
+
+  function removePage(id: string) {
+    setPages((prev) => prev.filter((p) => p.id !== id));
+    setError(null);
+    clearReading();
+  }
+
+  async function read() {
+    if (pages.length === 0) return;
+    scanRef.current?.abort();
+    const controller = new AbortController();
+    scanRef.current = controller;
     setPhase("processing");
+    setScanError(null);
+    setSaveError(null);
+    setExtracted(null);
+    setManualTotal("");
+    try {
+      const result = await scanInvoice(pages, controller.signal);
+      if (controller.signal.aborted) return;
+      // DEBUG: the page shows result.invoice_total as the total; the line sum is only for comparison.
+      console.log("[scan-invoice] API result", result);
+      console.log("[scan-invoice] total shown:", result.invoice_total, `(from "${result.invoice_total_label}")`, "| sum of products:",
+        Math.round(result.products.reduce((s, p) => s + p.quantity * p.unit_price, 0) * 100) / 100);
+      setExtracted(result);
+      setSupplier(result.supplier_name ?? "");
+      setInvoiceNumber(result.invoice_number ?? "");
+      if (isValidPastDate(result.invoice_date)) setInvoiceDate(result.invoice_date);
+      setPhase("done");
+    } catch (e) {
+      if (controller.signal.aborted) return;
+      setScanError(e instanceof Error ? e.message : "Something went wrong while reading your invoice.");
+      setPhase("error");
+    }
+  }
+
+  async function confirmAndSave() {
+    if (!canSave) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await saveInvoice({
+        supplier: supplier.trim(),
+        number: invoiceNumber.trim(),
+        date: invoiceDate,
+        total: total!,
+        items: products.map((p) => ({ name: p.name, quantity: p.quantity, unit: p.unit, unitPrice: p.unit_price })),
+      });
+      router.push("/dashboard/invoices");
+    } catch (e) {
+      setSaveError(e instanceof DuplicateInvoiceError ? e.message : "We couldn't save this invoice. Please try again.");
+      setSaving(false);
+    }
   }
 
   function reset() {
-    setFile(null);
-    setPhase("idle");
+    clearReading();
+    setPages([]);
     setError(null);
-    if (inputRef.current) inputRef.current.value = "";
+    setSupplier("");
+    setInvoiceNumber("");
   }
 
-  function onDragOver(e: DragEvent<HTMLDivElement>) {
+  function onDragOver(e: DragEvent<HTMLElement>) {
     e.preventDefault();
-    setDragOver(true);
+    if (canAddPage) setDragOver(true);
   }
-  function onDragLeave(e: DragEvent<HTMLDivElement>) {
+  function onDragLeave(e: DragEvent<HTMLElement>) {
     if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false);
   }
-  function onDrop(e: DragEvent<HTMLDivElement>) {
+  function onDrop(e: DragEvent<HTMLElement>) {
     e.preventDefault();
     setDragOver(false);
-    accept(e.dataTransfer.files[0]);
+    if (canAddPage) addFiles(Array.from(e.dataTransfer.files));
   }
+  const dropHandlers = { onDragOver, onDragEnter: onDragOver, onDragLeave, onDrop };
 
   return (
     <div className="min-h-screen bg-teal-50/60 pb-16">
@@ -133,20 +340,21 @@ export default function ScanInvoicePage() {
         <input
           ref={inputRef}
           type="file"
+          multiple
           accept="image/jpeg,image/png,application/pdf"
-          onChange={(e) => accept(e.target.files?.[0])}
+          onChange={(e) => {
+            addFiles(Array.from(e.target.files ?? []));
+            e.target.value = ""; // so the same file can be chosen again
+          }}
           className="sr-only"
           tabIndex={-1}
           aria-hidden
         />
 
-        {!file ? (
+        {pages.length === 0 ? (
           <>
             <div
-              onDragOver={onDragOver}
-              onDragEnter={onDragOver}
-              onDragLeave={onDragLeave}
-              onDrop={onDrop}
+              {...dropHandlers}
               className={`mt-8 flex min-h-[420px] flex-col items-center justify-center rounded-3xl border-2 border-dashed px-6 py-10 text-center transition ${
                 dragOver
                   ? "border-teal-600 bg-teal-100/70"
@@ -176,9 +384,10 @@ export default function ScanInvoicePage() {
               <button
                 type="button"
                 onClick={() => inputRef.current?.click()}
-                className="mt-4 rounded-full bg-gold-500 px-8 py-4 text-lg font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400"
+                disabled={preparing}
+                className="mt-4 rounded-full bg-gold-500 px-8 py-4 text-lg font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400 disabled:opacity-60"
               >
-                Choose a photo
+                {preparing ? "Opening…" : "Choose a photo"}
               </button>
             </div>
 
@@ -188,36 +397,81 @@ export default function ScanInvoicePage() {
               </p>
             )}
             <p className="mt-4 text-center text-xs text-gray-500">
-              Accepted formats: JPG, PNG, PDF. Max size: 10MB.
+              Accepted formats: JPG, PNG, PDF. Max size: 10MB. Up to {MAX_INVOICE_PAGES} pages per invoice.
             </p>
             <InvoiceDateField value={invoiceDate} onChange={setInvoiceDate} />
           </>
         ) : (
           <>
-            <div className="mt-8 grid gap-6 md:grid-cols-2">
-              {/* Preview */}
-              <section aria-label="Your invoice" className="rounded-2xl border border-teal-100 bg-white p-4 shadow-card">
-                {previewUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={previewUrl}
-                    alt="Preview of your invoice"
-                    className="max-h-[520px] w-full rounded-xl object-contain"
-                  />
-                ) : (
-                  <div className="flex h-72 flex-col items-center justify-center gap-3 rounded-xl bg-teal-50 text-teal-700">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-14 w-14" aria-hidden>
-                      <path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7l-4-4Z" />
-                      <path d="M14 3v4h4M9 12h6M9 16h6" />
+            <div className="mt-8 grid items-start gap-6 md:grid-cols-2">
+              {/* Pages */}
+              <section
+                aria-label="Your invoice pages"
+                {...dropHandlers}
+                className={`rounded-2xl border bg-white p-4 shadow-card transition ${
+                  dragOver ? "border-teal-600 bg-teal-50" : "border-teal-100"
+                }`}
+              >
+                <div className="flex items-baseline justify-between">
+                  <h2 className="text-lg font-semibold text-teal-950">Your invoice</h2>
+                  <p className="text-sm text-teal-900/60">
+                    {pages.length} of {MAX_INVOICE_PAGES} pages
+                  </p>
+                </div>
+                <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {pages.map((p, i) => (
+                    <PageThumbnail
+                      key={p.id}
+                      page={p}
+                      number={i + 1}
+                      onRemove={canEditPages ? () => removePage(p.id) : undefined}
+                    />
+                  ))}
+                  {preparing && (
+                    <li className="flex aspect-[3/4] items-center justify-center rounded-xl border-2 border-dashed border-teal-200 text-sm text-teal-700">
+                      Opening…
+                    </li>
+                  )}
+                </ul>
+
+                {canAddPage && (
+                  <button
+                    type="button"
+                    onClick={() => inputRef.current?.click()}
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-teal-300 px-4 py-3 font-semibold text-teal-700 transition hover:border-teal-600 hover:bg-teal-50"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="h-5 w-5" aria-hidden>
+                      <path d="M12 5v14M5 12h14" />
                     </svg>
-                    <p className="text-sm font-medium">PDF document</p>
-                  </div>
+                    Add another page
+                  </button>
                 )}
-                <p className="mt-3 truncate text-center text-sm text-teal-900/70">{file.name}</p>
+                {error && (
+                  <p role="alert" className="mt-3 text-sm font-medium text-red-600">
+                    {error}
+                  </p>
+                )}
               </section>
 
-              {/* Processing / result */}
-              {phase === "processing" ? (
+              {/* Read / processing / result */}
+              {phase === "collecting" ? (
+                <section className="flex flex-col items-center justify-center rounded-2xl border border-teal-100 bg-white p-8 text-center shadow-card">
+                  <h2 className="text-lg font-semibold text-teal-950">Is that the whole invoice?</h2>
+                  <p className="mt-2 max-w-xs text-sm text-teal-900/70">
+                    If your invoice has more than one page, add every page first. Sabai will read them together as
+                    one invoice.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={read}
+                    disabled={preparing}
+                    className="mt-6 rounded-full bg-gold-500 px-8 py-4 text-lg font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Read invoice
+                  </button>
+                  <p className="mt-3 text-xs text-gray-500">{plural(pages.length, "page")}</p>
+                </section>
+              ) : phase === "processing" ? (
                 <section
                   role="status"
                   aria-live="polite"
@@ -233,7 +487,9 @@ export default function ScanInvoicePage() {
                     />
                   </div>
                   <p className="mt-6 text-lg font-semibold text-teal-950">Processing…</p>
-                  <p className="mt-1 text-sm text-teal-900/70">Sabai is reading your invoice...</p>
+                  <p className="mt-1 text-sm text-teal-900/70">
+                    Sabai is reading your invoice{pages.length > 1 ? ` (${plural(pages.length, "page")})` : ""}...
+                  </p>
                   <div className="mt-4 flex gap-1.5" aria-hidden>
                     {[0, 150, 300].map((delay) => (
                       <span
@@ -244,62 +500,133 @@ export default function ScanInvoicePage() {
                     ))}
                   </div>
                 </section>
+              ) : phase === "error" ? (
+                <section
+                  role="alert"
+                  className="flex flex-col items-center justify-center rounded-2xl border border-red-200 bg-red-50 p-8 text-center"
+                >
+                  <p className="text-lg font-semibold text-red-700">Sabai couldn&apos;t read this invoice</p>
+                  <p className="mt-2 text-sm text-red-900">{scanError}</p>
+                  <button
+                    type="button"
+                    onClick={read}
+                    className="mt-6 rounded-full border-2 border-teal-700 px-6 py-2.5 font-semibold text-teal-700 transition hover:bg-teal-700 hover:text-white"
+                  >
+                    Try again
+                  </button>
+                </section>
               ) : (
                 <section aria-label="Extracted data" className="rounded-2xl border-2 border-teal-600 bg-white p-6 shadow-card">
                   <h2 className="text-lg font-semibold text-teal-950">Extracted data</h2>
-                  <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <dt className="font-medium text-teal-900/60">Supplier</dt>
-                      <dd className="mt-0.5 font-semibold text-teal-950">{EXTRACTED.supplier}</dd>
+                  <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+                    <TextField id="supplier" label="Supplier" value={supplier} onChange={setSupplier} />
+                    <TextField id="invoice-number" label="Invoice number" value={invoiceNumber} onChange={setInvoiceNumber} />
+                  </div>
+
+                  {products.length === 0 ? (
+                    <p className="mt-6 rounded-xl bg-gold-50 p-4 text-sm text-gold-800">
+                      No products were found on this invoice. Try a clearer photo of the whole invoice.
+                    </p>
+                  ) : (
+                    <div className="mt-6 overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead>
+                          <tr className="border-b border-teal-100 text-xs font-semibold uppercase tracking-wide text-teal-900/55">
+                            <th className="py-2 pr-2">Product</th>
+                            <th className="py-2 pr-2 text-right">Qty</th>
+                            <th className="py-2 pr-2">Unit</th>
+                            <th className="py-2 text-right">Unit price</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-teal-100">
+                          {products.map((p, i) => (
+                            <tr key={i}>
+                              <td className="py-2.5 pr-2 font-medium text-teal-950">{p.name}</td>
+                              <td className="py-2.5 pr-2 text-right tabular-nums text-teal-900/75">{fmt(p.quantity)}</td>
+                              <td className="py-2.5 pr-2 text-teal-900/75">{p.unit}</td>
+                              <td className="py-2.5 text-right tabular-nums text-teal-950">{fmt(p.unit_price)} ฿</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                    <div>
-                      <dt className="font-medium text-teal-900/60">Invoice date</dt>
-                      <dd className="mt-0.5 font-semibold text-teal-950">{EXTRACTED.date}</dd>
-                    </div>
+                  )}
+
+                  {/* All three amounts are read from the invoice, never calculated. */}
+                  <dl className="mt-4 space-y-2 border-t border-teal-100 pt-4 text-sm">
+                    {[
+                      { label: "Subtotal (excl. VAT)", value: extracted?.subtotal_excl_vat },
+                      { label: "VAT (7%)", value: extracted?.vat_amount },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="flex items-center justify-between">
+                        <dt className="font-medium text-teal-900/70">{label}</dt>
+                        <dd className="tabular-nums text-teal-950">
+                          {value != null ? `${fmt(value)} ฿` : <span className="text-gray-400">Not on invoice</span>}
+                        </dd>
+                      </div>
+                    ))}
                   </dl>
 
-                  <table className="mt-6 w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-teal-100 text-xs font-semibold uppercase tracking-wide text-teal-900/55">
-                        <th className="py-2 pr-2">Product</th>
-                        <th className="py-2 pr-2 text-right">Qty</th>
-                        <th className="py-2 text-right">Unit price</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-teal-100">
-                      {EXTRACTED.products.map((p) => (
-                        <tr key={p.name}>
-                          <td className="py-2.5 pr-2 font-medium text-teal-950">{p.name}</td>
-                          <td className="py-2.5 pr-2 text-right tabular-nums text-teal-900/75">{p.quantity}</td>
-                          <td className="py-2.5 text-right tabular-nums text-teal-950">{fmt(p.unitPrice)} ฿</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  <div className="mt-4 flex items-center justify-between border-t border-teal-100 pt-4">
-                    <span className="text-sm font-medium text-teal-900/70">Total</span>
-                    <span className="text-2xl font-bold tabular-nums text-teal-950">{fmt(EXTRACTED_TOTAL)} ฿</span>
-                  </div>
+                  {totalFound ? (
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-sm font-medium text-teal-900/70">Total (incl. VAT)</span>
+                      <span className="text-2xl font-bold tabular-nums text-teal-950">{fmt(total!)} ฿</span>
+                    </div>
+                  ) : (
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between gap-4">
+                        <label htmlFor="invoice-total" className="text-sm font-medium text-teal-900/70">
+                          Total (incl. VAT)
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            id="invoice-total"
+                            type="number"
+                            inputMode="decimal"
+                            min="0"
+                            step="0.01"
+                            value={manualTotal}
+                            onChange={(e) => setManualTotal(e.target.value)}
+                            aria-describedby="invoice-total-hint"
+                            className="w-36 rounded-lg border border-teal-200 px-3 py-2 text-right text-lg font-bold tabular-nums text-teal-950 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
+                          />
+                          <span className="text-lg font-bold text-teal-950">฿</span>
+                        </div>
+                      </div>
+                      <p id="invoice-total-hint" className="mt-2 text-xs text-gold-800">
+                        Sabai couldn&apos;t find the total on this invoice. Please type the final amount you paid.
+                      </p>
+                    </div>
+                  )}
                 </section>
               )}
             </div>
 
             <InvoiceDateField value={invoiceDate} onChange={setInvoiceDate} />
 
+            {saveError && (
+              <p role="alert" className="mt-6 text-sm font-medium text-red-600">
+                {saveError}
+              </p>
+            )}
             <div className="mt-8 flex flex-wrap items-center gap-4">
-              <Link
-                href={`/dashboard/invoices/scan/confirm?date=${invoiceDate}`}
-                className="rounded-full bg-gold-500 px-8 py-4 text-lg font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400"
-              >
-                Confirm and save
-              </Link>
+              {phase === "done" && (
+                <button
+                  type="button"
+                  onClick={confirmAndSave}
+                  disabled={!canSave}
+                  className="rounded-full bg-gold-500 px-8 py-4 text-lg font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-gold-500"
+                >
+                  {saving ? "Saving…" : "Confirm and save"}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={reset}
-                className="rounded-full border-2 border-teal-700 px-8 py-3.5 text-lg font-semibold text-teal-700 transition hover:bg-teal-700 hover:text-white"
+                disabled={saving}
+                className="rounded-full border-2 border-teal-700 px-8 py-3.5 text-lg font-semibold text-teal-700 transition hover:bg-teal-700 hover:text-white disabled:opacity-50"
               >
-                Scan another invoice
+                {phase === "done" ? "Scan another invoice" : "Start over"}
               </button>
             </div>
           </>

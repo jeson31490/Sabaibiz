@@ -97,6 +97,70 @@ export async function fetchPriceAlerts(limit = 10): Promise<PriceAlertRow[]> {
   });
 }
 
+export type NewInvoice = {
+  supplier: string;
+  number: string;
+  /** Official invoice date as YYYY-MM-DD. */
+  date: string;
+  /** Final amount payable as printed on the invoice, including VAT and discounts. */
+  total: number;
+  items: { name: string; quantity: number; unit: string; unitPrice: number }[];
+};
+
+export class DuplicateInvoiceError extends Error {}
+
+/** Saves a confirmed invoice and its line items, creating the supplier if it's new. Returns the invoice id. */
+export async function saveInvoice(invoice: NewInvoice): Promise<string> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error("Please sign in to save invoices.");
+  const userId = auth.user.id;
+
+  const { data: supplier, error: supplierError } = await supabase
+    .from("suppliers")
+    .upsert({ user_id: userId, name: invoice.supplier }, { onConflict: "user_id,name" })
+    .select("id")
+    .single();
+  if (supplierError) throw supplierError;
+
+  const { data: saved, error: invoiceError } = await supabase
+    .from("invoices")
+    .insert({
+      user_id: userId,
+      supplier_id: supplier.id,
+      invoice_number: invoice.number,
+      invoice_date: invoice.date,
+      total: Math.round(invoice.total * 100) / 100,
+      status: "processed",
+    })
+    .select("id")
+    .single();
+  if (invoiceError) {
+    // unique (user_id, invoice_number)
+    if (invoiceError.code === "23505") throw new DuplicateInvoiceError(`Invoice ${invoice.number} is already saved.`);
+    throw invoiceError;
+  }
+
+  if (invoice.items.length > 0) {
+    const { error: itemsError } = await supabase.from("invoice_items").insert(
+      invoice.items.map((i) => ({
+        invoice_id: saved.id,
+        user_id: userId,
+        product_name: i.name,
+        quantity: i.quantity,
+        unit: i.unit,
+        unit_price: i.unitPrice,
+      })),
+    );
+    if (itemsError) {
+      // Don't leave an invoice without its items; deleting it cascades.
+      await supabase.from("invoices").delete().eq("id", saved.id);
+      throw itemsError;
+    }
+  }
+
+  return saved.id;
+}
+
 const pad = (n: number) => String(n).padStart(2, "0");
 export const toIsoDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 export const fromIsoDate = (s: string) => {
