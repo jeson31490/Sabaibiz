@@ -1,16 +1,31 @@
+"use client";
+
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, type ReactNode } from "react";
+import { useUser } from "../context/UserContext";
 import DashboardNavbar from "./DashboardNavbar";
 
 export default function SettingsShell({
   title,
   maxWidth = "max-w-3xl",
+  ownerOnly = false,
   children,
 }: {
   title: string;
   maxWidth?: string;
+  /** Business settings: managers and employees are sent back to Settings. */
+  ownerOnly?: boolean;
   children: ReactNode;
 }) {
+  const router = useRouter();
+  const { role } = useUser();
+  const allowed = !ownerOnly || role === "owner";
+
+  useEffect(() => {
+    if (ownerOnly && role !== null && role !== "owner") router.replace("/dashboard/settings");
+  }, [ownerOnly, role, router]);
+
   return (
     <div className="min-h-screen bg-teal-50/60 pb-16">
       <DashboardNavbar />
@@ -28,7 +43,13 @@ export default function SettingsShell({
         <h1 className="mt-3 text-2xl font-bold tracking-tight text-teal-950 sm:text-3xl">
           {title}
         </h1>
-        {children}
+        {allowed ? (
+          children
+        ) : (
+          <p role="status" className="mt-6 text-sm text-teal-900/70">
+            Loading…
+          </p>
+        )}
       </main>
     </div>
   );

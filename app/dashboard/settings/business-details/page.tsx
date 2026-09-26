@@ -28,7 +28,7 @@ export default function BusinessDetailsPage() {
   }
 
   return (
-    <SettingsShell title="Business Details">
+    <SettingsShell ownerOnly title="Business Details">
       <form
         onSubmit={handleSave}
         onChange={() => setSaved(false)}

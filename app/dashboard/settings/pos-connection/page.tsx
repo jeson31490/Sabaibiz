@@ -33,7 +33,7 @@ const INTEGRATIONS = [
 
 export default function PosConnectionPage() {
   return (
-    <SettingsShell title="Connection & POS" maxWidth="max-w-5xl">
+    <SettingsShell ownerOnly title="Connection & POS" maxWidth="max-w-5xl">
       <p className="mt-1 text-sm text-teal-900/65">
         Connect your point-of-sale so SabaiBiz can match sales against ingredient costs.
       </p>

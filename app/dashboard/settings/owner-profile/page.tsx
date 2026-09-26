@@ -41,7 +41,7 @@ function Field({
 }
 
 export default function OwnerProfilePage() {
-  const { user, updateUser } = useUser();
+  const { user, updateUser, role } = useUser();
   const fileRef = useRef<HTMLInputElement>(null);
   // Local preview while a new photo uploads; afterwards the saved photo comes from the user context.
   const [preview, setPreview] = useState<string | null>(null);
@@ -195,7 +195,8 @@ export default function OwnerProfilePage() {
           Back
         </Link>
         <h1 className="mt-3 text-2xl font-bold tracking-tight text-teal-950 sm:text-3xl">
-          Owner Profile
+          {/* Managers and employees reach the same page as "Profile". */}
+          {role === "owner" ? "Owner Profile" : "Profile"}
         </h1>
 
         {/* Profile */}

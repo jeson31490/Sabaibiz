@@ -34,7 +34,7 @@ export default function SubscriptionDetailsPage() {
   const amount = (MONTHLY_PRICE * cycle.months).toLocaleString("en-US");
 
   return (
-    <SettingsShell title="Subscription Details">
+    <SettingsShell ownerOnly title="Subscription Details">
       <section className="mt-8 rounded-2xl border border-teal-100 bg-white p-6 shadow-card sm:p-8">
         <dl className="grid gap-6 sm:grid-cols-2">
           <div>

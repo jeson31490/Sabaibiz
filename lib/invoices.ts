@@ -183,11 +183,21 @@ export type NewInvoice = {
 
 export class DuplicateInvoiceError extends Error {}
 
+/** The owner's user id for a team member, otherwise the signed-in user's own id. */
+export async function currentBusinessId(): Promise<string> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error("Please sign in first.");
+  const { data, error } = await supabase.rpc("current_business_id");
+  // PGRST202: supabase/03_team_members.sql hasn't been run yet, so there are no teams.
+  if (error?.code === "PGRST202") return auth.user.id;
+  if (error) throw error;
+  return data as string;
+}
+
 /** Saves a confirmed invoice and its line items, creating the supplier if it's new. Returns the invoice id. */
 export async function saveInvoice(invoice: NewInvoice): Promise<string> {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) throw new Error("Please sign in to save invoices.");
-  const userId = auth.user.id;
+  // Rows belong to the business: the owner's id, also when a team member scans the invoice.
+  const userId = await currentBusinessId();
 
   const { data: supplier, error: supplierError } = await supabase
     .from("suppliers")

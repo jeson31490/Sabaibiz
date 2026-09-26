@@ -1,5 +1,6 @@
 -- SabaiBiz: database schema
 -- Run this first in the Supabase SQL Editor. Safe to run more than once.
+-- 03_team_members.sql replaces the policies below with team-aware ones: if you re-run this file, run 03 again after it.
 
 -- ---------------------------------------------------------------------------
 -- Tables

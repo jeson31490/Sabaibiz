@@ -101,7 +101,7 @@ function IconCheck() {
 
 export default function SubscriptionPlanPage() {
   return (
-    <SettingsShell title="Subscription Plan" maxWidth="max-w-6xl">
+    <SettingsShell ownerOnly title="Subscription Plan" maxWidth="max-w-6xl">
       <p className="mt-1 text-sm text-teal-900/65">
         Choose the plan that fits your business. You can change it anytime.
       </p>
