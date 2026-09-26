@@ -3,8 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { getInitials, useUser } from "../context/UserContext";
-import { usePathname } from "next/navigation";
-import type { ReactElement } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, type ReactElement } from "react";
+import { supabase } from "../../lib/supabase";
 import { BUSINESS_NAME } from "../lib/business";
 
 type IconProps = { className?: string };
@@ -69,6 +70,15 @@ const NAV_ITEMS: {
 export default function DashboardNavbar() {
   const { user } = useUser();
   const pathname = usePathname();
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    // Ends the Supabase session; the user context resets itself on the sign-out event.
+    await supabase.auth.signOut();
+    router.push("/");
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-teal-100/80 bg-white/90 backdrop-blur">
@@ -115,12 +125,14 @@ export default function DashboardNavbar() {
               {getInitials(user.name)}
             </span>
           )}
-          <Link
-            href="/"
-            className="rounded-full border border-teal-200 px-4 py-1.5 text-sm font-semibold text-teal-800 transition hover:border-teal-300 hover:bg-teal-50"
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="rounded-full border border-teal-200 px-4 py-1.5 text-sm font-semibold text-teal-800 transition hover:border-teal-300 hover:bg-teal-50 disabled:cursor-wait disabled:opacity-60"
           >
-            Log out
-          </Link>
+            {loggingOut ? "Logging out…" : "Log out"}
+          </button>
         </div>
       </div>
 

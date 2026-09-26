@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { useUser } from "../context/UserContext";
+import { supabase } from "../../lib/supabase";
 
 const COUNTRIES = [
   "Thailand",
@@ -22,18 +24,56 @@ const labelClass = "block text-sm font-medium text-teal-900";
 
 export default function SignupPage() {
   const router = useRouter();
+  const { updateUser } = useUser();
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
     if (data.get("password") !== data.get("confirmPassword")) {
       setError("Passwords do not match.");
+      setSuccess(null);
       return;
     }
     setError(null);
-    // Real account creation will be wired to Supabase auth in the next step.
-    router.push("/dashboard");
+    setSuccess(null);
+    setSubmitting(true);
+
+    const email = String(data.get("email")).trim();
+    const fullName = String(data.get("fullName")).trim();
+    const { data: result, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password: String(data.get("password")),
+      options: {
+        data: {
+          full_name: fullName,
+          business_name: String(data.get("businessName")).trim(),
+          country: String(data.get("country")),
+        },
+      },
+    });
+    setSubmitting(false);
+
+    if (signUpError) {
+      setError(signUpError.message);
+      return;
+    }
+    // With email confirmation on, Supabase answers an existing address with an
+    // obfuscated user that has no identities instead of an error.
+    if (result.user && result.user.identities?.length === 0) {
+      setError("An account with this email already exists. Try signing in instead.");
+      return;
+    }
+
+    updateUser({ name: fullName, email });
+    if (result.session) {
+      // Email confirmation is off: the user is already signed in.
+      router.push("/dashboard");
+    } else {
+      setSuccess("Account created! Check your email and click the confirmation link, then sign in.");
+    }
   }
 
   return (
@@ -157,11 +197,18 @@ export default function SignupPage() {
             </p>
           )}
 
+          {success && (
+            <p role="status" className="rounded-xl bg-teal-50 p-4 text-sm font-medium text-teal-800">
+              {success}
+            </p>
+          )}
+
           <button
             type="submit"
-            className="w-full rounded-full bg-gold-500 px-8 py-4 text-lg font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400"
+            disabled={submitting}
+            className="w-full rounded-full bg-gold-500 px-8 py-4 text-lg font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400 disabled:cursor-wait disabled:opacity-60 disabled:hover:bg-gold-500"
           >
-            Create my account
+            {submitting ? "Creating your account…" : "Create my account"}
           </button>
         </form>
 

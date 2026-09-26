@@ -1,6 +1,9 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import type { User } from "@supabase/supabase-js";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { getAvatarUrl } from "../../lib/avatar";
+import { supabase } from "../../lib/supabase";
 
 export type UserProfile = {
   name: string;
@@ -20,10 +23,28 @@ const DEFAULT_USER: UserProfile = {
   avatarUrl: null,
 };
 
+// Name, email and photo of a signed-in Supabase user.
+function profileFromAuthUser(u: User): UserProfile {
+  const meta = (u.user_metadata ?? {}) as Record<string, string | undefined>;
+  return {
+    name: meta.full_name || u.email || "",
+    email: u.email ?? "",
+    avatarUrl: getAvatarUrl(u),
+  };
+}
+
 const UserContext = createContext<UserContextValue | null>(null);
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile>(DEFAULT_USER);
+
+  // Keep the profile (including the photo) in sync with the Supabase session on every page.
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ? profileFromAuthUser(session.user) : DEFAULT_USER);
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
 
   const value = useMemo<UserContextValue>(
     () => ({

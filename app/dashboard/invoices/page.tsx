@@ -1,93 +1,25 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DashboardNavbar from "../../components/DashboardNavbar";
 import { inputClass, labelClass } from "../../components/FormField";
+import {
+  DATE_FILTERS,
+  customRangeFrom,
+  dayStart,
+  matchesDate,
+  type CustomRange,
+  type DateFilter,
+} from "../../../lib/dateFilters";
+import { fetchInvoices, fromIsoDate, toIsoDate, type InvoiceRow } from "../../../lib/invoices";
 
-type Status = "Processed" | "Pending" | "Error";
-type Invoice = {
-  number: string;
-  supplier: string;
-  date: Date;
-  products: number;
-  total: number;
-  status: Status;
-};
+const TODAY = dayStart(new Date());
 
-// Fixed "today" for the placeholder data; real dates come from Supabase later.
-const TODAY = new Date(2026, 8, 26);
-
-const INVOICES: Invoice[] = [
-  { number: "INV-0142", supplier: "Makro Samui", date: new Date(2026, 8, 26), products: 12, total: 3480, status: "Processed" },
-  { number: "INV-0141", supplier: "Chaweng Fresh Market", date: new Date(2026, 8, 25), products: 8, total: 2150, status: "Pending" },
-  { number: "INV-0140", supplier: "Samui Seafood Co.", date: new Date(2026, 8, 24), products: 15, total: 5920, status: "Processed" },
-  { number: "INV-0139", supplier: "Lamai Meat Supply", date: new Date(2026, 8, 19), products: 9, total: 4310, status: "Error" },
-  { number: "INV-0138", supplier: "Makro Samui", date: new Date(2026, 7, 29), products: 11, total: 2890, status: "Processed" },
-];
-
-const SUPPLIERS = Array.from(new Set(INVOICES.map((i) => i.supplier))).sort();
-const DATE_FILTERS = [
-  { id: "any", label: "Any date" },
-  { id: "today", label: "Today" },
-  { id: "7d", label: "Last 7 days" },
-  { id: "30d", label: "Last 30 days" },
-  { id: "month", label: "This month" },
-  { id: "lastMonth", label: "Last month" },
-  { id: "3m", label: "Last 3 months" },
-  { id: "6m", label: "Last 6 months" },
-  { id: "custom", label: "Custom range" },
-] as const;
-type DateFilter = (typeof DATE_FILTERS)[number]["id"];
-type CustomRange = { from: Date; to: Date };
-
-const dayStart = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-const monthsAgo = (n: number) => new Date(TODAY.getFullYear(), TODAY.getMonth() - n, TODAY.getDate());
-const pad = (n: number) => String(n).padStart(2, "0");
-const toIso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const fromIso = (s: string) => {
-  const [y, m, d] = s.split("-").map(Number);
-  return new Date(y, m - 1, d);
-};
-
-function matchesDate(date: Date, filter: DateFilter, custom: CustomRange | null) {
-  const d = dayStart(date);
-  const last = new Date(TODAY.getFullYear(), TODAY.getMonth() - 1, 1);
-  switch (filter) {
-    case "any":
-      return true;
-    case "today":
-      return d.getTime() === TODAY.getTime();
-    case "7d":
-      return d >= new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate() - 7) && d <= TODAY;
-    case "30d":
-      return d >= new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate() - 30) && d <= TODAY;
-    case "month":
-      return d.getMonth() === TODAY.getMonth() && d.getFullYear() === TODAY.getFullYear();
-    case "lastMonth":
-      return d.getMonth() === last.getMonth() && d.getFullYear() === last.getFullYear();
-    case "3m":
-      return d >= monthsAgo(3) && d <= TODAY;
-    case "6m":
-      return d >= monthsAgo(6) && d <= TODAY;
-    case "custom":
-      // Until a range is applied, don't hide anything.
-      return !custom || (d >= custom.from && d <= custom.to);
-  }
-}
-
-const fmtDate = (d: Date) =>
-  d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-const fmtBaht = (n: number) => `${n.toLocaleString("en-US")} ฿`;
-
-const thisMonth = INVOICES.filter(
-  (i) => i.date.getMonth() === TODAY.getMonth() && i.date.getFullYear() === TODAY.getFullYear(),
-);
-const SUMMARY = [
-  { label: "Invoices this month", value: String(thisMonth.length) },
-  { label: "Spent this month", value: fmtBaht(thisMonth.reduce((s, i) => s + i.total, 0)) },
-  { label: "Pending invoices", value: String(INVOICES.filter((i) => i.status === "Pending").length) },
-];
+const fmtDate = (iso: string) =>
+  fromIsoDate(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const fmtBaht = (n: number) => `${Math.round(n).toLocaleString("en-US")} ฿`;
 
 const svgProps = {
   viewBox: "0 0 24 24",
@@ -100,8 +32,8 @@ const svgProps = {
   "aria-hidden": true,
 };
 
-function StatusBadge({ status }: { status: Status }) {
-  if (status === "Processed")
+function StatusBadge({ status }: { status: InvoiceRow["status"] }) {
+  if (status === "processed")
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">
         <svg {...svgProps}>
@@ -110,7 +42,7 @@ function StatusBadge({ status }: { status: Status }) {
         Processed
       </span>
     );
-  if (status === "Pending")
+  if (status === "pending")
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-500/15 px-3 py-1 text-xs font-semibold text-gold-600">
         <svg {...svgProps}>
@@ -131,33 +63,84 @@ function StatusBadge({ status }: { status: Status }) {
   );
 }
 
+type Load = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; invoices: InvoiceRow[] };
+
 export default function InvoicesPage() {
+  const [load, setLoad] = useState<Load>({ status: "loading" });
   const [query, setQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<DateFilter>("any");
-  const [draftFrom, setDraftFrom] = useState(toIso(new Date(TODAY.getFullYear(), TODAY.getMonth(), 1)));
-  const [draftTo, setDraftTo] = useState(toIso(TODAY));
+  const [draftFrom, setDraftFrom] = useState(toIsoDate(new Date(TODAY.getFullYear(), TODAY.getMonth(), 1)));
+  const [draftTo, setDraftTo] = useState(toIsoDate(TODAY));
   const [customRange, setCustomRange] = useState<CustomRange | null>(null);
   const [supplier, setSupplier] = useState("all");
   const [status, setStatus] = useState("all");
 
+  useEffect(() => {
+    let cancelled = false;
+    fetchInvoices()
+      .then((invoices) => {
+        if (!cancelled) setLoad({ status: "ready", invoices });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled)
+          setLoad({ status: "error", message: err instanceof Error ? err.message : "Your invoices could not be loaded." });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const invoices = useMemo(() => (load.status === "ready" ? load.invoices : []), [load]);
+  const suppliers = useMemo(() => Array.from(new Set(invoices.map((i) => i.supplier))).sort(), [invoices]);
+
+  // Summary bar: this calendar month. Invoices that failed to read don't count as spend.
+  const summary = useMemo(() => {
+    const month = invoices.filter((i) => {
+      const d = fromIsoDate(i.date);
+      return d.getMonth() === TODAY.getMonth() && d.getFullYear() === TODAY.getFullYear();
+    });
+    return [
+      { label: "Invoices this month", value: String(month.length) },
+      { label: "Spent this month", value: fmtBaht(month.filter((i) => i.status !== "error").reduce((s, i) => s + i.total, 0)) },
+      { label: "Pending invoices", value: String(invoices.filter((i) => i.status === "pending").length) },
+    ];
+  }, [invoices]);
+
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return INVOICES.filter((i) => {
+    return invoices.filter((i) => {
       if (q && !i.number.toLowerCase().includes(q) && !i.supplier.toLowerCase().includes(q)) return false;
       if (supplier !== "all" && i.supplier !== supplier) return false;
       if (status !== "all" && i.status !== status) return false;
-      return matchesDate(i.date, dateFilter, customRange);
+      return matchesDate(fromIsoDate(i.date), dateFilter, customRange, TODAY);
     });
-  }, [query, dateFilter, customRange, supplier, status]);
+  }, [invoices, query, dateFilter, customRange, supplier, status]);
 
-  const draftInvalid = !draftFrom || !draftTo || draftFrom > draftTo;
+  // Period summary for the applied range. Invoices that failed to read (status "error") are not spend.
+  const period = useMemo(() => {
+    const counted = rows.filter((i) => i.status !== "error");
+    const total = counted.reduce((s, i) => s + i.total, 0);
+    return {
+      total,
+      count: counted.length,
+      average: counted.length ? total / counted.length : 0,
+      excluded: rows.length - counted.length,
+    };
+  }, [rows]);
+
+  // Apply only needs both dates; a reversed pair is put in order rather than rejected.
+  const draftIncomplete = !draftFrom || !draftTo;
 
   function applyCustomRange() {
-    if (draftInvalid) return;
-    setCustomRange({ from: fromIso(draftFrom), to: fromIso(draftTo) });
+    if (draftIncomplete) return;
+    const range = customRangeFrom(draftFrom, draftTo, fromIsoDate);
+    setDraftFrom(toIsoDate(range.from));
+    setDraftTo(toIsoDate(range.to));
+    setCustomRange(range);
   }
 
   const selectClass = `${inputClass} mt-0`;
+  const isEmpty = load.status === "ready" && invoices.length === 0;
 
   return (
     <div className="min-h-screen bg-teal-50/60 pb-16">
@@ -175,151 +158,222 @@ export default function InvoicesPage() {
           </Link>
         </div>
 
-        {/* Summary bar */}
-        <section aria-label="This month" className="grid gap-4 sm:grid-cols-3">
-          {SUMMARY.map(({ label, value }) => (
-            <div key={label} className="rounded-2xl border border-teal-100 bg-white p-6 shadow-card">
-              <p className="text-sm font-medium text-teal-900/65">{label}</p>
-              <p className="mt-2 text-3xl font-bold tracking-tight text-teal-950">{value}</p>
-            </div>
-          ))}
-        </section>
+        {load.status === "loading" && (
+          <p role="status" className="py-16 text-center text-sm font-medium text-teal-900/60">
+            Loading your invoices…
+          </p>
+        )}
 
-        {/* Filters */}
-        <section aria-label="Search and filters" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by invoice number or supplier"
-            aria-label="Search invoices"
-            className={`${inputClass} mt-0 sm:col-span-2 lg:col-span-1`}
-          />
-          <select
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value as DateFilter)}
-            aria-label="Filter by date"
-            className={selectClass}
-          >
-            {DATE_FILTERS.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.label}
-              </option>
-            ))}
-          </select>
-          <select value={supplier} onChange={(e) => setSupplier(e.target.value)} aria-label="Filter by supplier" className={selectClass}>
-            <option value="all">All suppliers</option>
-            {SUPPLIERS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status" className={selectClass}>
-            <option value="all">All statuses</option>
-            <option value="Processed">Processed</option>
-            <option value="Pending">Pending</option>
-            <option value="Error">Error</option>
-          </select>
-        </section>
+        {load.status === "error" && (
+          <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
+            We couldn&apos;t load your invoices: {load.message}
+          </p>
+        )}
 
-        {dateFilter === "custom" && (
-          <section
-            aria-label="Custom date range"
-            className="-mt-4 flex flex-wrap items-end gap-4 rounded-2xl border border-teal-100 bg-white p-4 shadow-card"
-          >
-            <div>
-              <label htmlFor="range-from" className={labelClass}>
-                From
-              </label>
-              <input
-                id="range-from"
-                type="date"
-                max={draftTo || undefined}
-                value={draftFrom}
-                onChange={(e) => setDraftFrom(e.target.value)}
-                className={`${inputClass} w-44`}
+        {isEmpty && (
+          <section className="flex flex-col items-center rounded-2xl border border-teal-100 bg-white px-6 py-14 text-center shadow-card">
+            <div className="relative h-40 w-56 max-w-full">
+              <Image
+                src="/Snap%20Photo.png"
+                alt="Mascot ready to photograph your first invoice"
+                fill
+                sizes="224px"
+                className="object-contain"
               />
             </div>
-            <div>
-              <label htmlFor="range-to" className={labelClass}>
-                To
-              </label>
-              <input
-                id="range-to"
-                type="date"
-                min={draftFrom || undefined}
-                value={draftTo}
-                onChange={(e) => setDraftTo(e.target.value)}
-                className={`${inputClass} w-44`}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={applyCustomRange}
-              disabled={draftInvalid}
-              className="rounded-full bg-gold-500 px-8 py-3 text-base font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-gold-500"
+            <h2 className="mt-6 text-xl font-semibold text-teal-950">No invoices yet</h2>
+            <p className="mt-2 max-w-sm text-sm text-teal-900/65">
+              Scan your first invoice to see your costs and profit here.
+            </p>
+            <Link
+              href="/dashboard/invoices/scan"
+              className="mt-6 rounded-full bg-gold-500 px-8 py-4 text-lg font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400"
             >
-              Apply
-            </button>
-            {draftFrom && draftTo && draftFrom > draftTo && (
-              <p role="alert" className="text-sm font-medium text-red-600">
-                The start date must be before the end date.
-              </p>
-            )}
+              Scan your first invoice
+            </Link>
           </section>
         )}
 
-        {/* Table */}
-        <section className="rounded-2xl border border-teal-100 bg-white shadow-card">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
-              <thead>
-                <tr className="text-xs font-semibold uppercase tracking-wide text-teal-900/55">
-                  <th className="px-6 py-3">Invoice</th>
-                  <th className="px-6 py-3">Supplier</th>
-                  <th className="px-6 py-3">Date</th>
-                  <th className="px-6 py-3 text-right">Products</th>
-                  <th className="px-6 py-3 text-right">Total</th>
-                  <th className="px-6 py-3">Status</th>
-                  <th className="px-6 py-3 text-right">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-teal-100">
-                {rows.map((i) => (
-                  <tr key={i.number} className="transition hover:bg-teal-50/60">
-                    <td className="px-6 py-4 font-semibold text-teal-950">{i.number}</td>
-                    <td className="px-6 py-4 text-teal-950">{i.supplier}</td>
-                    <td className="px-6 py-4 text-teal-900/70">{fmtDate(i.date)}</td>
-                    <td className="px-6 py-4 text-right tabular-nums text-teal-900/80">{i.products}</td>
-                    <td className="px-6 py-4 text-right font-semibold tabular-nums text-teal-950">{fmtBaht(i.total)}</td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={i.status} />
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        type="button"
-                        aria-label={`View invoice ${i.number}`}
-                        className="rounded-full border border-teal-200 px-4 py-1.5 text-xs font-semibold text-teal-800 transition hover:bg-teal-700 hover:text-white"
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
+        {load.status === "ready" && !isEmpty && (
+          <>
+            {/* Summary bar */}
+            <section aria-label="This month" className="grid gap-4 sm:grid-cols-3">
+              {summary.map(({ label, value }) => (
+                <div key={label} className="rounded-2xl border border-teal-100 bg-white p-6 shadow-card">
+                  <p className="text-sm font-medium text-teal-900/65">{label}</p>
+                  <p className="mt-2 text-3xl font-bold tracking-tight text-teal-950">{value}</p>
+                </div>
+              ))}
+            </section>
+
+            {/* Filters */}
+            <section aria-label="Search and filters" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by invoice number or supplier"
+                aria-label="Search invoices"
+                className={`${inputClass} mt-0 sm:col-span-2 lg:col-span-1`}
+              />
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value as DateFilter)}
+                aria-label="Filter by date"
+                className={selectClass}
+              >
+                {DATE_FILTERS.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.label}
+                  </option>
                 ))}
-                {rows.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-10 text-center text-teal-900/60">
-                      No invoices match your filters.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+              </select>
+              <select value={supplier} onChange={(e) => setSupplier(e.target.value)} aria-label="Filter by supplier" className={selectClass}>
+                <option value="all">All suppliers</option>
+                {suppliers.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+              <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Filter by status" className={selectClass}>
+                <option value="all">All statuses</option>
+                <option value="processed">Processed</option>
+                <option value="pending">Pending</option>
+                <option value="error">Error</option>
+              </select>
+            </section>
+
+            {dateFilter === "custom" && (
+              <section
+                aria-label="Custom date range"
+                className="-mt-4 grid gap-6 rounded-2xl border border-teal-100 bg-white p-4 shadow-card lg:grid-cols-[1fr_auto]"
+              >
+                <div className="flex flex-wrap items-end gap-4">
+                <div>
+                  <label htmlFor="range-from" className={labelClass}>
+                    From
+                  </label>
+                  <input
+                    id="range-from"
+                    type="date"
+                    value={draftFrom}
+                    onChange={(e) => setDraftFrom(e.target.value)}
+                    className={`${inputClass} w-44`}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="range-to" className={labelClass}>
+                    To
+                  </label>
+                  <input
+                    id="range-to"
+                    type="date"
+                    value={draftTo}
+                    onChange={(e) => setDraftTo(e.target.value)}
+                    className={`${inputClass} w-44`}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={applyCustomRange}
+                  disabled={draftIncomplete}
+                  className="rounded-full bg-gold-500 px-8 py-3 text-base font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-gold-500"
+                >
+                  Apply
+                </button>
+                {/* Visible confirmation: a range that covers every invoice would otherwise look like nothing happened. */}
+                <p role="status" className="w-full text-sm font-medium text-teal-800">
+                  {customRange
+                    ? `Showing ${rows.length} of ${invoices.length} invoices from ${fmtDate(toIsoDate(customRange.from))} to ${fmtDate(toIsoDate(customRange.to))}.`
+                    : "Pick a From and a To date, then click Apply."}
+                </p>
+                </div>
+
+                {/* Period summary, shown on the right once a range has been applied */}
+                <div
+                  aria-label="Period summary"
+                  className="rounded-xl bg-teal-50 p-5 lg:min-w-[260px] lg:text-right"
+                >
+                  {customRange ? (
+                    <dl className="space-y-3">
+                      <div>
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-teal-800/70">Total spent</dt>
+                        <dd className="mt-0.5 text-3xl font-bold tabular-nums text-gold-600">{fmtBaht(period.total)}</dd>
+                      </div>
+                      <div className="flex justify-between gap-6 text-sm lg:justify-end">
+                        <dt className="text-teal-800/75">Number of invoices</dt>
+                        <dd className="font-semibold tabular-nums text-teal-950">{period.count}</dd>
+                      </div>
+                      <div className="flex justify-between gap-6 text-sm lg:justify-end">
+                        <dt className="text-teal-800/75">Average per invoice</dt>
+                        <dd className="font-semibold tabular-nums text-teal-950">{fmtBaht(period.average)}</dd>
+                      </div>
+                      {period.excluded > 0 && (
+                        <p className="text-xs text-teal-800/60">
+                          {period.excluded} invoice{period.excluded > 1 ? "s" : ""} with an error not counted.
+                        </p>
+                      )}
+                    </dl>
+                  ) : (
+                    <p className="text-sm text-teal-800/70">Apply a range to see the total spent in that period.</p>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* Table */}
+            <section className="rounded-2xl border border-teal-100 bg-white shadow-card">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead>
+                    <tr className="text-xs font-semibold uppercase tracking-wide text-teal-900/55">
+                      <th className="px-6 py-3">Invoice</th>
+                      <th className="px-6 py-3">Supplier</th>
+                      <th className="px-6 py-3">Date</th>
+                      <th className="px-6 py-3 text-right">Products</th>
+                      <th className="px-6 py-3 text-right">Total</th>
+                      <th className="px-6 py-3">Status</th>
+                      <th className="px-6 py-3 text-right">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-teal-100">
+                    {rows.map((i) => (
+                      <tr key={i.id} className="transition hover:bg-teal-50/60">
+                        <td className="px-6 py-4 font-semibold text-teal-950">{i.number}</td>
+                        <td className="px-6 py-4 text-teal-950">{i.supplier}</td>
+                        <td className="px-6 py-4 text-teal-900/70">{fmtDate(i.date)}</td>
+                        <td className="px-6 py-4 text-right tabular-nums text-teal-900/80">{i.products}</td>
+                        <td className="px-6 py-4 text-right font-semibold tabular-nums text-teal-950">{fmtBaht(i.total)}</td>
+                        <td className="px-6 py-4">
+                          <StatusBadge status={i.status} />
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            type="button"
+                            aria-label={`View invoice ${i.number}`}
+                            className="rounded-full border border-teal-200 px-4 py-1.5 text-xs font-semibold text-teal-800 transition hover:bg-teal-700 hover:text-white"
+                          >
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {rows.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-10 text-center text-teal-900/60">
+                          No invoices match your filters.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </>
+        )}
       </main>
     </div>
   );

@@ -3,7 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
+import { useUser } from "../context/UserContext";
+import { supabase } from "../../lib/supabase";
 
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-teal-200 bg-white px-4 py-3 text-base text-teal-950 placeholder:text-teal-900/40 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20";
@@ -11,10 +13,32 @@ const labelClass = "block text-sm font-medium text-teal-900";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { updateUser } = useUser();
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    // Real authentication will be wired to Supabase auth in the next step.
+    const data = new FormData(e.currentTarget);
+    setError(null);
+    setSubmitting(true);
+
+    const { data: result, error: signInError } = await supabase.auth.signInWithPassword({
+      email: String(data.get("email")).trim(),
+      password: String(data.get("password")),
+    });
+
+    if (signInError) {
+      setSubmitting(false);
+      setError(signInError.message);
+      return;
+    }
+
+    const user = result.user;
+    updateUser({
+      name: (user.user_metadata?.full_name as string | undefined) || user.email || "",
+      email: user.email ?? "",
+    });
     router.push("/dashboard");
   }
 
@@ -74,11 +98,18 @@ export default function LoginPage() {
             />
           </div>
 
+          {error && (
+            <p role="alert" className="text-sm font-medium text-red-600">
+              {error}
+            </p>
+          )}
+
           <button
             type="submit"
-            className="w-full rounded-full bg-gold-500 px-8 py-4 text-lg font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400"
+            disabled={submitting}
+            className="w-full rounded-full bg-gold-500 px-8 py-4 text-lg font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400 disabled:cursor-wait disabled:opacity-60 disabled:hover:bg-gold-500"
           >
-            Sign in
+            {submitting ? "Signing in…" : "Sign in"}
           </button>
         </form>
 
