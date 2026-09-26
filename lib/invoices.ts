@@ -98,6 +98,57 @@ export async function fetchCostsScannedToday(): Promise<{ total: number; count: 
   return { total: satang / 100, count: rows.length };
 }
 
+export type PurchaseRow = {
+  product: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  /** Date printed on the invoice, as YYYY-MM-DD. */
+  date: string;
+  supplier: string;
+};
+
+type RawPurchase = {
+  product_name: string;
+  unit: string;
+  quantity: number | string;
+  unit_price: number | string;
+  invoices: Related<{ invoice_date: string; suppliers: Related<{ name: string }> }>;
+};
+
+const PAGE_SIZE = 1000; // PostgREST's default maximum rows per request
+
+/** Every product line the user has bought, with its invoice date and supplier. Invoices that failed to read are left out. */
+export async function fetchPurchaseHistory(): Promise<PurchaseRow[]> {
+  const rows: RawPurchase[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("invoice_items")
+      .select("product_name, unit, quantity, unit_price, invoices!inner(invoice_date, suppliers(name))")
+      .neq("invoices.status", "error")
+      .order("id") // stable order so pages don't overlap
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    rows.push(...((data ?? []) as unknown as RawPurchase[]));
+    if (!data || data.length < PAGE_SIZE) break;
+  }
+
+  return rows.flatMap((r) => {
+    const invoice = Array.isArray(r.invoices) ? r.invoices[0] : r.invoices;
+    if (!invoice) return [];
+    return [
+      {
+        product: r.product_name,
+        unit: r.unit,
+        quantity: Number(r.quantity),
+        unitPrice: Number(r.unit_price),
+        date: invoice.invoice_date,
+        supplier: relatedName(invoice.suppliers),
+      },
+    ];
+  });
+}
+
 export async function fetchPriceAlerts(limit = 10): Promise<PriceAlertRow[]> {
   const { data, error } = await supabase
     .from("price_alerts")
