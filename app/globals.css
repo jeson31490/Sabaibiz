@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+/* Sabai brand palette — teal (primary) + gold (accent) */
+@theme {
+  --color-teal-50: #edfaf8;
+  --color-teal-100: #d4f1ec;
+  --color-teal-200: #a9e3da;
+  --color-teal-300: #78d0c2;
+  --color-teal-400: #45b5a6;
+  --color-teal-500: #279488;
+  --color-teal-600: #1c766d;
+  --color-teal-700: #185e58;
+  --color-teal-800: #164b47;
+  --color-teal-900: #123b38;
+  --color-teal-950: #082220;
+
+  --color-gold-50: #fdf8ed;
+  --color-gold-100: #faeece;
+  --color-gold-200: #f3da9d;
+  --color-gold-300: #eac06c;
+  --color-gold-400: #dfa845;
+  --color-gold-500: #c6902f;
+  --color-gold-600: #a17324;
+  --color-gold-700: #7d591f;
+  --color-gold-800: #5f441c;
+  --color-gold-900: #4a361a;
+
+  --shadow-soft: 0 4px 24px -4px rgba(18, 59, 56, 0.08);
+  --shadow-card: 0 2px 12px -2px rgba(18, 59, 56, 0.1);
+}
+
+body {
+  background: #ffffff;
+  color: var(--color-teal-950);
+}
