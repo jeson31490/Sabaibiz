@@ -6,7 +6,6 @@ import { getInitials, useUser } from "../context/UserContext";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactElement } from "react";
 import { supabase } from "../../lib/supabase";
-import { BUSINESS_NAME } from "../lib/business";
 
 type IconProps = { className?: string };
 
@@ -105,7 +104,7 @@ export default function DashboardNavbar() {
         </Link>
 
         <p className="truncate text-center text-base font-semibold text-teal-950 sm:text-lg">
-          {BUSINESS_NAME}
+          {user.businessName}
         </p>
 
         <div className="flex items-center gap-3 justify-self-end">

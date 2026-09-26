@@ -52,12 +52,13 @@ const relatedName = (r: Related<{ name: string }>) => (Array.isArray(r) ? r[0]?.
 const INVOICE_SELECT = "id, invoice_number, invoice_date, total, status, suppliers(name), invoice_items(count)";
 
 // Row Level Security limits every query to the signed-in user's own rows.
-export async function fetchInvoices(options: { limit?: number; date?: string } = {}): Promise<InvoiceRow[]> {
-  let query = supabase
-    .from("invoices")
-    .select(INVOICE_SELECT)
-    .order("invoice_date", { ascending: false })
-    .order("created_at", { ascending: false });
+// orderBy "added" lists the most recently saved invoices first, whatever date is printed on them.
+export async function fetchInvoices(
+  options: { limit?: number; date?: string; orderBy?: "invoiceDate" | "added" } = {},
+): Promise<InvoiceRow[]> {
+  let query = supabase.from("invoices").select(INVOICE_SELECT);
+  if (options.orderBy !== "added") query = query.order("invoice_date", { ascending: false });
+  query = query.order("created_at", { ascending: false });
   if (options.date) query = query.eq("invoice_date", options.date);
   if (options.limit) query = query.limit(options.limit);
 
@@ -73,6 +74,28 @@ export async function fetchInvoices(options: { limit?: number; date?: string } =
     total: Number(r.total),
     status: r.status,
   }));
+}
+
+/**
+ * Sum of the invoices scanned today (by created_at, in Bangkok time), whatever date is printed on them:
+ * owners scan the day's receipts in the evening. Invoices that failed to read don't count.
+ */
+export async function fetchCostsScannedToday(): Promise<{ total: number; count: number }> {
+  // Thailand has no daylight saving time, so a Bangkok day is always exactly 24 hours.
+  const start = new Date(`${bangkokToday()}T00:00:00+07:00`);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("total")
+    .gte("created_at", start.toISOString())
+    .lt("created_at", end.toISOString())
+    .neq("status", "error");
+  if (error) throw error;
+
+  const rows = (data ?? []) as { total: number | string }[];
+  // numeric columns arrive as strings; add up in satang to avoid floating-point drift.
+  const satang = rows.reduce((s, r) => s + Math.round(Number(r.total) * 100), 0);
+  return { total: satang / 100, count: rows.length };
 }
 
 export async function fetchPriceAlerts(limit = 10): Promise<PriceAlertRow[]> {
@@ -163,6 +186,17 @@ export async function saveInvoice(invoice: NewInvoice): Promise<string> {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 export const toIsoDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+// en-CA formats dates as YYYY-MM-DD.
+const bangkokDateFormat = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Bangkok",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+/** Today's date in Thailand (UTC+7) as YYYY-MM-DD, wherever the browser is. */
+export const bangkokToday = (now: Date = new Date()) => bangkokDateFormat.format(now);
+
 export const fromIsoDate = (s: string) => {
   const [y, m, d] = s.split("-").map(Number);
   return new Date(y, m - 1, d);

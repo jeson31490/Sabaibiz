@@ -9,7 +9,11 @@ export type UserProfile = {
   name: string;
   email: string;
   avatarUrl: string | null;
+  /** From `business_name` in the Supabase user metadata, saved at signup. */
+  businessName: string;
 };
+
+export const DEFAULT_BUSINESS_NAME = "My Business";
 
 type UserContextValue = {
   user: UserProfile;
@@ -21,15 +25,17 @@ const DEFAULT_USER: UserProfile = {
   name: "Moustache Owner",
   email: "",
   avatarUrl: null,
+  businessName: DEFAULT_BUSINESS_NAME,
 };
 
-// Name, email and photo of a signed-in Supabase user.
+// Name, email, photo and business name of a signed-in Supabase user.
 function profileFromAuthUser(u: User): UserProfile {
   const meta = (u.user_metadata ?? {}) as Record<string, string | undefined>;
   return {
     name: meta.full_name || u.email || "",
     email: u.email ?? "",
     avatarUrl: getAvatarUrl(u),
+    businessName: meta.business_name?.trim() || DEFAULT_BUSINESS_NAME,
   };
 }
 

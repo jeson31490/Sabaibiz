@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type DragEvent } from "react";
 import DashboardNavbar from "../../../components/DashboardNavbar";
-import { DuplicateInvoiceError, saveInvoice } from "../../../../lib/invoices";
+import { bangkokToday, DuplicateInvoiceError, saveInvoice } from "../../../../lib/invoices";
 import { MAX_INVOICE_PAGES } from "../../../../lib/scanInvoice";
 import { supabase } from "../../../../lib/supabase";
 import type { ScannedInvoice } from "../../../api/scan-invoice/route";
@@ -28,10 +28,8 @@ type InvoicePage = {
   dataUrl: string;
 };
 
-const pad = (n: number) => String(n).padStart(2, "0");
-const toIso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const isValidPastDate = (s: string | null): s is string =>
-  !!s && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s)) && s <= toIso(new Date());
+  !!s && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s)) && s <= bangkokToday();
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 // Phone photos are often 5-10MB, above Claude's 5MB image limit: shrink to a JPEG data URL.
@@ -115,7 +113,7 @@ function InvoiceDateField({ value, onChange }: { value: string; onChange: (v: st
         id="invoice-date"
         type="date"
         value={value}
-        max={toIso(new Date())}
+        max={bangkokToday()}
         onChange={(e) => onChange(e.target.value)}
         aria-describedby="invoice-date-hint"
         suppressHydrationWarning
@@ -177,7 +175,7 @@ export default function ScanInvoicePage() {
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The official invoice date (not the scan date); defaults to today, editable.
-  const [invoiceDate, setInvoiceDate] = useState(() => toIso(new Date()));
+  const [invoiceDate, setInvoiceDate] = useState(() => bangkokToday());
   const [scanError, setScanError] = useState<string | null>(null);
   const [extracted, setExtracted] = useState<ScannedInvoice | null>(null);
   // Editable, so the owner can fix anything Sabai misread.

@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Field, SelectField } from "../../../components/FormField";
 import SettingsShell from "../../../components/SettingsShell";
-import { BUSINESS_NAME } from "../../../lib/business";
+import { useUser } from "../../../context/UserContext";
 
 const BUSINESS_TYPES = ["Restaurant", "Café", "Shop", "Other"];
 const COUNTRIES = [
@@ -18,6 +18,7 @@ const COUNTRIES = [
 ];
 
 export default function BusinessDetailsPage() {
+  const { user } = useUser();
   const [saved, setSaved] = useState(false);
 
   function handleSave(e: FormEvent<HTMLFormElement>) {
@@ -34,7 +35,16 @@ export default function BusinessDetailsPage() {
         className="mt-8 rounded-2xl border border-teal-100 bg-white p-6 shadow-card sm:p-8"
       >
         <div className="grid gap-5 sm:grid-cols-2">
-          <Field id="businessName" label="Business name" type="text" defaultValue={BUSINESS_NAME} autoComplete="organization" required />
+          {/* Keyed so the field picks up the saved name once the session has loaded. */}
+          <Field
+            key={user.businessName}
+            id="businessName"
+            label="Business name"
+            type="text"
+            defaultValue={user.businessName}
+            autoComplete="organization"
+            required
+          />
           <SelectField id="businessType" label="Business type" options={BUSINESS_TYPES} defaultValue="Restaurant" />
           <div className="sm:col-span-2">
             <Field id="address" label="Address" type="text" autoComplete="street-address" />

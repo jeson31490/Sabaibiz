@@ -6,20 +6,26 @@ import { useEffect, useState } from "react";
 import {
   fetchInvoices,
   fetchPriceAlerts,
+  fetchCostsScannedToday,
   fromIsoDate,
-  toIsoDate,
   type InvoiceRow,
   type PriceAlertRow,
 } from "../../lib/invoices";
-import { BUSINESS_NAME } from "../lib/business";
+import { useUser } from "../context/UserContext";
 import PriceAlertsCard from "./PriceAlertsCard";
 
 type State =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "ready"; recent: InvoiceRow[]; today: InvoiceRow[]; alerts: PriceAlertRow[] };
+  | {
+      status: "ready";
+      recent: InvoiceRow[];
+      today: { total: number; count: number };
+      alerts: PriceAlertRow[];
+    };
 
-const fmtBaht = (n: number) => `${Math.round(n).toLocaleString("en-US")} ฿`;
+// Keeps the satang (2,418.25 ฿) rather than rounding to whole baht.
+const fmtBaht = (n: number) => `${n.toLocaleString("en-US", { maximumFractionDigits: 2 })} ฿`;
 const fmtDate = (iso: string) =>
   fromIsoDate(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
@@ -82,13 +88,14 @@ function StatusBadge({ status }: { status: InvoiceRow["status"] }) {
 }
 
 export default function DashboardContent() {
+  const { user } = useUser();
   const [state, setState] = useState<State>({ status: "loading" });
 
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      fetchInvoices({ limit: 5 }),
-      fetchInvoices({ date: toIsoDate(new Date()) }),
+      fetchInvoices({ limit: 5, orderBy: "added" }),
+      fetchCostsScannedToday(),
       fetchPriceAlerts(),
     ])
       .then(([recent, today, alerts]) => {
@@ -107,20 +114,16 @@ export default function DashboardContent() {
   }, []);
 
   const ready = state.status === "ready" ? state : null;
-  // Invoices that failed to read don't count as a cost.
-  const todayCounted = ready?.today.filter((i) => i.status !== "error") ?? [];
-  const todayCosts = todayCounted.reduce((sum, i) => sum + i.total, 0);
-
   const kpis = [
     { label: "Today's Revenue", value: "—", note: "No data yet" },
     {
-      label: "Today's Costs",
-      value: ready ? fmtBaht(todayCosts) : "…",
+      label: "Costs scanned today",
+      value: ready ? fmtBaht(ready.today.total) : "…",
       note: !ready
         ? "Loading"
-        : todayCounted.length > 0
-          ? `${todayCounted.length} invoice${todayCounted.length > 1 ? "s" : ""} today`
-          : "No invoices today",
+        : ready.today.count > 0
+          ? `${ready.today.count} invoice${ready.today.count > 1 ? "s" : ""} scanned today`
+          : "No invoices scanned today",
     },
     { label: "Today's Profit", value: "—", note: "No data yet" },
   ];
@@ -130,7 +133,7 @@ export default function DashboardContent() {
       <main className="mx-auto max-w-6xl space-y-8 px-6 py-8">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-teal-950 sm:text-3xl">Welcome to SabaiBiz</h1>
-          <p className="mt-1 text-sm text-teal-900/65">Here&apos;s how {BUSINESS_NAME} is doing today.</p>
+          <p className="mt-1 text-sm text-teal-900/65">Here&apos;s how {user.businessName} is doing today.</p>
         </div>
 
         {state.status === "error" && (
