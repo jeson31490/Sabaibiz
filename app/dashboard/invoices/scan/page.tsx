@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type DragEvent } from "react";
 import DashboardNavbar from "../../../components/DashboardNavbar";
-import { bangkokToday, DuplicateInvoiceError, saveInvoice } from "../../../../lib/invoices";
+import { bangkokToday, DuplicateInvoiceError, findSavedInvoice, fromIsoDate, saveInvoice } from "../../../../lib/invoices";
 import { MAX_INVOICE_PAGES } from "../../../../lib/scanInvoice";
 import { supabase } from "../../../../lib/supabase";
-import type { ScannedInvoice } from "../../../api/scan-invoice/route";
+import type { ScanResult } from "../../../api/scan-invoice/route";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "application/pdf"];
@@ -66,7 +66,7 @@ async function toInvoicePage(file: File): Promise<InvoicePage> {
   };
 }
 
-async function scanInvoice(pages: InvoicePage[], signal: AbortSignal): Promise<ScannedInvoice> {
+async function scanInvoice(pages: InvoicePage[], signal: AbortSignal): Promise<ScanResult> {
   const { data } = await supabase.auth.getSession();
   const res = await fetch("/api/scan-invoice", {
     method: "POST",
@@ -79,7 +79,7 @@ async function scanInvoice(pages: InvoicePage[], signal: AbortSignal): Promise<S
   });
   const body = await res.json().catch(() => null);
   if (!res.ok) throw new Error(body?.error ?? "Something went wrong while reading your invoice.");
-  return body as ScannedInvoice;
+  return body as ScanResult;
 }
 
 function TextField({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (v: string) => void }) {
@@ -177,7 +177,7 @@ export default function ScanInvoicePage() {
   // The official invoice date (not the scan date); defaults to today, editable.
   const [invoiceDate, setInvoiceDate] = useState(() => bangkokToday());
   const [scanError, setScanError] = useState<string | null>(null);
-  const [extracted, setExtracted] = useState<ScannedInvoice | null>(null);
+  const [extracted, setExtracted] = useState<ScanResult | null>(null);
   // Editable, so the owner can fix anything Sabai misread.
   const [supplier, setSupplier] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -185,6 +185,8 @@ export default function ScanInvoicePage() {
   const [manualTotal, setManualTotal] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Set when this supplier + number is already saved: shown right after reading, before any typing.
+  const [alreadySaved, setAlreadySaved] = useState<string | null>(null);
 
   const products = extracted?.products ?? [];
   // The total printed on the invoice (after VAT and discounts), never the sum of the lines.
@@ -207,6 +209,7 @@ export default function ScanInvoicePage() {
     setPhase("collecting");
     setScanError(null);
     setSaveError(null);
+    setAlreadySaved(null);
     setExtracted(null);
     setManualTotal("");
   }
@@ -268,6 +271,14 @@ export default function ScanInvoicePage() {
       setInvoiceNumber(result.invoice_number ?? "");
       if (isValidPastDate(result.invoice_date)) setInvoiceDate(result.invoice_date);
       setPhase("done");
+      // Warn now rather than after the owner has checked every line. Saving checks again anyway.
+      findSavedInvoice(result.supplier_name ?? "", result.invoice_number ?? "")
+        .then((saved) => {
+          if (!saved || controller.signal.aborted) return;
+          const date = fromIsoDate(saved.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+          setAlreadySaved(`This invoice is already saved (${result.supplier_name}, n° ${result.invoice_number}, dated ${date}). You don't need to save it again.`);
+        })
+        .catch(() => {});
     } catch (e) {
       if (controller.signal.aborted) return;
       setScanError(e instanceof Error ? e.message : "Something went wrong while reading your invoice.");
@@ -286,6 +297,7 @@ export default function ScanInvoicePage() {
         date: invoiceDate,
         total: total!,
         items: products.map((p) => ({ name: p.name, quantity: p.quantity, unit: p.unit, unitPrice: p.unit_price })),
+        scanId: extracted?.scan_id ?? null,
       });
       router.push("/dashboard/invoices");
     } catch (e) {
@@ -517,9 +529,14 @@ export default function ScanInvoicePage() {
                 <section aria-label="Extracted data" className="rounded-2xl border-2 border-teal-600 bg-white p-6 shadow-card">
                   <h2 className="text-lg font-semibold text-teal-950">Extracted data</h2>
                   <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                    <TextField id="supplier" label="Supplier" value={supplier} onChange={setSupplier} />
-                    <TextField id="invoice-number" label="Invoice number" value={invoiceNumber} onChange={setInvoiceNumber} />
+                    <TextField id="supplier" label="Supplier" value={supplier} onChange={(v) => { setSupplier(v); setAlreadySaved(null); }} />
+                    <TextField id="invoice-number" label="Invoice number" value={invoiceNumber} onChange={(v) => { setInvoiceNumber(v); setAlreadySaved(null); }} />
                   </div>
+                  {alreadySaved && (
+                    <p role="alert" className="mt-4 rounded-xl bg-gold-50 p-4 text-sm font-medium text-gold-800">
+                      {alreadySaved}
+                    </p>
+                  )}
 
                   {products.length === 0 ? (
                     <p className="mt-6 rounded-xl bg-gold-50 p-4 text-sm text-gold-800">

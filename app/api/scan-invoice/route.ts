@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { MAX_INVOICE_PAGES } from "../../../lib/scanInvoice";
 import { supabase } from "../../../lib/supabase";
@@ -46,6 +47,9 @@ const ScannedInvoiceSchema = z.object({
 
 export type ScannedInvoice = z.infer<typeof ScannedInvoiceSchema>;
 
+/** What the route returns: the invoice, plus the id of this reading in invoice_scans (null if it couldn't be recorded). */
+export type ScanResult = ScannedInvoice & { scan_id: string | null };
+
 const PROMPT = `These are the pages of one supplier invoice or receipt from a restaurant or shop in Thailand, in order. Read all pages together as a single invoice. Extract:
 - supplier_name: the business that issued the invoice (the seller, not the buyer).
 - invoice_date: the date printed on the invoice, as YYYY-MM-DD. Thai invoices often use the Buddhist Era year (e.g. 2569); subtract 543 to get the Gregorian year.
@@ -89,6 +93,36 @@ const client = new Anthropic();
 
 function jsonError(message: string, status: number) {
   return Response.json({ error: message }, { status });
+}
+
+/**
+ * Records one reading and the tokens it used in invoice_scans, as the signed-in user (RLS puts it
+ * in their business). Returns its id, or null: a failed record never stops the scan itself.
+ */
+async function recordScan(
+  userToken: string,
+  scan: { pages: number; inputTokens: number; outputTokens: number; succeeded: boolean },
+): Promise<string | null> {
+  const asUser = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    global: { headers: { Authorization: `Bearer ${userToken}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await asUser
+    .from("invoice_scans")
+    .insert({
+      model: MODEL,
+      pages: scan.pages,
+      input_tokens: scan.inputTokens,
+      output_tokens: scan.outputTokens,
+      succeeded: scan.succeeded,
+    })
+    .select("id")
+    .single();
+  if (error) {
+    console.error("scan-invoice: couldn't record scan cost", error.message);
+    return null;
+  }
+  return data.id;
 }
 
 export async function POST(request: Request) {
@@ -143,7 +177,16 @@ export async function POST(request: Request) {
     });
     console.log("[scan-invoice] parsed output", JSON.stringify(invoice, null, 2));
 
-    if (response.stop_reason === "refusal" || !invoice) {
+    const succeeded = response.stop_reason !== "refusal" && !!invoice;
+    // Paid for either way, so recorded either way.
+    const scanId = await recordScan(token, {
+      pages: pages.length,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      succeeded,
+    });
+
+    if (!succeeded || !invoice) {
       return jsonError("We couldn't read this invoice. Please try a clearer photo.", 422);
     }
 
@@ -151,7 +194,8 @@ export async function POST(request: Request) {
       ...invoice,
       // Drop lines the database would reject.
       products: invoice.products.filter((p) => p.name.trim() && p.quantity > 0 && p.unit_price >= 0),
-    } satisfies ScannedInvoice);
+      scan_id: scanId,
+    } satisfies ScanResult);
   } catch (error) {
     if (error instanceof Anthropic.RateLimitError) {
       return jsonError("Sabai is busy right now. Please try again in a minute.", 429);

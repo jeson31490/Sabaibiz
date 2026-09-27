@@ -179,9 +179,75 @@ export type NewInvoice = {
   /** Final amount payable as printed on the invoice, including VAT and discounts. */
   total: number;
   items: { name: string; quantity: number; unit: string; unitPrice: number }[];
+  /** The Claude reading it came from (invoice_scans), to know what it cost. */
+  scanId?: string | null;
 };
 
 export class DuplicateInvoiceError extends Error {}
+
+function duplicateError(invoice: NewInvoice, savedDate?: string) {
+  const when = savedDate
+    ? `, dated ${fromIsoDate(savedDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`
+    : "";
+  return new DuplicateInvoiceError(
+    `Invoice ${invoice.number.trim()} from ${invoice.supplier.trim()} is already saved${when}. It was not saved again.`,
+  );
+}
+
+/** Spaces tidied up: "  Siam   Makro " → "Siam Makro". How a new supplier's name is saved. */
+const cleanName = (s: string) => s.trim().replace(/\s+/g, " ");
+/** Two supplier names are the same supplier when they only differ by case or spaces. */
+const supplierKey = (s: string) => cleanName(s).toLowerCase();
+const sameText = (a: string, b: string) => supplierKey(a) === supplierKey(b);
+
+/**
+ * The business's supplier with this name, ignoring case and spaces ("MAKRO" = "Makro "), or null.
+ * Matches the unique index in supabase/06_supplier_names.sql.
+ */
+async function findSupplier(userId: string, name: string): Promise<string | null> {
+  const { data, error } = await supabase.from("suppliers").select("id, name").eq("user_id", userId);
+  if (error) throw error;
+  return (data ?? []).find((s) => sameText(s.name, name))?.id ?? null;
+}
+
+/** The existing supplier with this name, or a new one. Never creates "MAKRO" next to "Makro". */
+async function findOrCreateSupplier(userId: string, name: string): Promise<string> {
+  const existing = await findSupplier(userId, name);
+  if (existing) return existing;
+  const { data, error } = await supabase
+    .from("suppliers")
+    .insert({ user_id: userId, name: cleanName(name) })
+    .select("id")
+    .single();
+  if (!error) return data.id;
+  // Created meanwhile (e.g. from another phone): use that one.
+  if (error.code === "23505") {
+    const created = await findSupplier(userId, name);
+    if (created) return created;
+  }
+  throw error;
+}
+
+/**
+ * An invoice already saved with this supplier and number, if any. Case and spaces in the supplier
+ * name are ignored ("MAKRO" = "Makro "), as is the case of the number.
+ */
+export async function findSavedInvoice(supplier: string, number: string): Promise<{ date: string } | null> {
+  if (!supplier.trim() || !number.trim()) return null;
+  // ilike without wildcards is a case-insensitive equality; escape any % or _ in the number.
+  const pattern = number.trim().replace(/[\\%_]/g, (c) => `\\${c}`);
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("invoice_date, suppliers(name)")
+    .ilike("invoice_number", pattern);
+  if (error) throw error;
+  const rows = (data ?? []) as unknown as { invoice_date: string; suppliers: Related<{ name: string }> }[];
+  const match = rows.find((r) => {
+    const s = Array.isArray(r.suppliers) ? r.suppliers[0] : r.suppliers;
+    return s ? sameText(s.name, supplier) : false;
+  });
+  return match ? { date: match.invoice_date } : null;
+}
 
 /** The owner's user id for a team member, otherwise the signed-in user's own id. */
 export async function currentBusinessId(): Promise<string> {
@@ -199,28 +265,27 @@ export async function saveInvoice(invoice: NewInvoice): Promise<string> {
   // Rows belong to the business: the owner's id, also when a team member scans the invoice.
   const userId = await currentBusinessId();
 
-  const { data: supplier, error: supplierError } = await supabase
-    .from("suppliers")
-    .upsert({ user_id: userId, name: invoice.supplier }, { onConflict: "user_id,name" })
-    .select("id")
-    .single();
-  if (supplierError) throw supplierError;
+  const existing = await findSavedInvoice(invoice.supplier, invoice.number);
+  if (existing) throw duplicateError(invoice, existing.date);
+
+  const supplierId = await findOrCreateSupplier(userId, invoice.supplier);
 
   const { data: saved, error: invoiceError } = await supabase
     .from("invoices")
     .insert({
       user_id: userId,
-      supplier_id: supplier.id,
+      supplier_id: supplierId,
       invoice_number: invoice.number,
       invoice_date: invoice.date,
       total: Math.round(invoice.total * 100) / 100,
       status: "processed",
+      scan_id: invoice.scanId ?? null,
     })
     .select("id")
     .single();
   if (invoiceError) {
-    // unique (user_id, invoice_number)
-    if (invoiceError.code === "23505") throw new DuplicateInvoiceError(`Invoice ${invoice.number} is already saved.`);
+    // unique (user_id, supplier_id, invoice_number): saved meanwhile, e.g. from another device
+    if (invoiceError.code === "23505") throw duplicateError(invoice);
     throw invoiceError;
   }
 
