@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import LoyverseCard from "../../../components/LoyverseCard";
 import SettingsShell from "../../../components/SettingsShell";
 
 export const metadata: Metadata = {
@@ -7,12 +8,6 @@ export const metadata: Metadata = {
 };
 
 const INTEGRATIONS = [
-  {
-    name: "Loyverse",
-    logo: { src: "/Loyverse%20logo.png", width: 252, height: 254 },
-    description: "Sync your sales and menu items from Loyverse to see real margins per dish.",
-    available: true,
-  },
   {
     name: "Ocha",
     logo: { src: "/Ocha%20logo.jpg", width: 447, height: 447 },
@@ -39,6 +34,7 @@ export default function PosConnectionPage() {
       </p>
 
       <div className="mt-8 grid gap-6 sm:grid-cols-2">
+        <LoyverseCard />
         {INTEGRATIONS.map(({ name, description, available, logo }) => (
           <div
             key={name}
