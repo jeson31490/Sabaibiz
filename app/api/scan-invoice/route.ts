@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { MAX_INVOICE_PAGES } from "../../../lib/scanInvoice";
+import { cleanInvoiceNumber, cleanTaxId, MAX_INVOICE_PAGES, shortSupplierName } from "../../../lib/scanInvoice";
 import { supabase } from "../../../lib/supabase";
 
 // Reading a long invoice can take a while.
@@ -18,9 +18,17 @@ const MAX_PDF_BYTES = 10 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 20 * 1024 * 1024;
 
 const ScannedInvoiceSchema = z.object({
-  supplier_name: z.string().nullable(),
-  invoice_date: z.string().nullable().describe("Date printed on the invoice, as YYYY-MM-DD"),
-  invoice_number: z.string().nullable(),
+  supplier_name: z.string().nullable().describe('Short trading name only, e.g. "Makro"; no legal name, branch or parentheses'),
+  supplier_legal_name: z.string().nullable(),
+  supplier_tax_id: z.string().nullable().describe("Seller's 13-digit Thai tax ID, digits only; never the buyer's"),
+  invoice_date: z
+    .string()
+    .nullable()
+    .describe("Date printed on the invoice, read as day/month/year, returned as YYYY-MM-DD; null if none printed"),
+  invoice_number: z
+    .string()
+    .nullable()
+    .describe("Only a number labelled as the invoice/receipt number; null if none. Never a date, phone, tax ID or amount"),
   subtotal_excl_vat: z
     .number()
     .nullable()
@@ -51,9 +59,11 @@ export type ScannedInvoice = z.infer<typeof ScannedInvoiceSchema>;
 export type ScanResult = ScannedInvoice & { scan_id: string | null };
 
 const PROMPT = `These are the pages of one supplier invoice or receipt from a restaurant or shop in Thailand, in order. Read all pages together as a single invoice. Extract:
-- supplier_name: the business that issued the invoice (the seller, not the buyer).
-- invoice_date: the date printed on the invoice, as YYYY-MM-DD. Thai invoices often use the Buddhist Era year (e.g. 2569); subtract 543 to get the Gregorian year.
-- invoice_number: the invoice, receipt or tax invoice number, exactly as printed.
+- supplier_name: the short trading name of the business that issued the invoice (the seller, not the buyer), as a customer would say it: "Makro", "Tops", "Big C", "Lotus's", "HomePro". Never add the legal company name, a branch, "Co., Ltd.", "บริษัท … จำกัด" or anything in parentheses. The same shop must always get the same short name: Siam Makro and CP Axtra receipts are both "Makro". Use null when no seller name is printed, as on many market and small family receipts that only show a date, the products and a total; the owner will pick the supplier. Never use the buyer's name, a product name or a stamp you can't read.
+- supplier_legal_name: the seller's full registered company name exactly as printed (e.g. "บริษัท ซีพี แอ็กซ์ตร้า จำกัด (มหาชน)"), or null if none is printed.
+- supplier_tax_id: the seller's 13-digit Thai tax ID ("เลขประจำตัวผู้เสียภาษี", "Tax ID", "TAX ID NO."), digits only, or null. Tax invoices often also print the buyer's (customer's, "ลูกค้า") tax ID: never use that one.
+- invoice_date: the date printed on the invoice, as YYYY-MM-DD. Thai invoices write dates DAY/MONTH/YEAR: 08/01/2026 is 8 January 2026 and 01/08/69 is 1 August 2569, never the American month/day order. They often use the Buddhist Era year (e.g. 2569, or 69 for short); subtract 543 to get the Gregorian year. If no date is printed, use null: never guess or use today's date.
+- invoice_number: only a number explicitly labelled as the invoice or receipt number, such as "No.", "Invoice No", "Receipt No", "Bill No", "Tax invoice no", "เลขที่" or "เลขที่ใบกำกับ", copied exactly as printed. Never use a date, a phone number, a tax ID (13 digits, "เลขประจำตัวผู้เสียภาษี", "Tax ID"), an amount or a total as the invoice number. If no labelled number is printed, use null; SabaiBiz then makes its own reference.
 - subtotal_excl_vat: the amount before VAT, copied exactly from the invoice, not calculated by you. Usually labelled "มูลค่าสินค้า", "มูลค่าก่อนภาษี", "LEGAL AMOUNT", "VATABLE" or "Subtotal". It must be a number printed on the invoice: if a discount comes between the printed subtotal and the VAT and no line shows the amount after that discount, use null. Never subtract or add amounts yourself.
 - vat_amount: the VAT amount (7% in Thailand), copied exactly from the invoice, not calculated by you. Usually labelled "ภาษี", "ภาษีมูลค่าเพิ่ม", "VAT" or "VAT 7%". Use null if the invoice doesn't print it.
 - invoice_total: the final amount payable, copied exactly from the invoice's total line, not calculated by you. It is usually the last total printed, after VAT, service charge and discounts, and labelled for example "จำนวนเงินรวมทั้งสิ้น", "ยอดสุทธิ", "รวมเงิน", "TOTAL", "Grand total" or "Net amount". When several totals are printed (e.g. รวมเงิน before VAT, then จำนวนเงินรวมทั้งสิ้น after VAT), use the final one. On a multi-page invoice it is usually on the last page.
@@ -192,6 +202,12 @@ export async function POST(request: Request) {
 
     return Response.json({
       ...invoice,
+      // Safety nets on top of the prompt: "Makro (บริษัท …)" → "Makro"; a tax ID is 13 digits or nothing.
+      supplier_name: shortSupplierName(invoice.supplier_name ?? "") || null,
+      supplier_legal_name: invoice.supplier_legal_name?.trim() || null,
+      supplier_tax_id: cleanTaxId(invoice.supplier_tax_id),
+      // Safety net on top of the prompt: a date read as the number is dropped, so an AUTO-… reference is made.
+      invoice_number: cleanInvoiceNumber(invoice.invoice_number, invoice.invoice_date),
       // Drop lines the database would reject.
       products: invoice.products.filter((p) => p.name.trim() && p.quantity > 0 && p.unit_price >= 0),
       scan_id: scanId,

@@ -72,6 +72,16 @@ function IconPlug({ className }: IconProps) {
   );
 }
 
+function IconTruck({ className }: IconProps) {
+  return (
+    <svg {...svgProps} className={className}>
+      <path d="M3 6h11v10H3zM14 10h4l3 3v3h-7" />
+      <circle cx="7" cy="18" r="2" />
+      <circle cx="17" cy="18" r="2" />
+    </svg>
+  );
+}
+
 type Card = {
   title: string;
   description: string;
@@ -109,6 +119,12 @@ const OWNER_CARDS: Card[] = [
     description: "Invite managers and control what each person can see.",
     href: "/dashboard/settings/team-access",
     icon: IconGroup,
+  },
+  {
+    title: "Suppliers",
+    description: "Rename your suppliers or merge duplicates, so prices are tracked together.",
+    href: "/dashboard/settings/suppliers",
+    icon: IconTruck,
   },
   {
     title: "Connection & POS",

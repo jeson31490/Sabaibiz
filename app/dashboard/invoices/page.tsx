@@ -342,7 +342,18 @@ export default function InvoicesPage() {
                   <tbody className="divide-y divide-teal-100">
                     {rows.map((i) => (
                       <tr key={i.id} className="transition hover:bg-teal-50/60">
-                        <td className="px-6 py-4 font-semibold text-teal-950">{i.number}</td>
+                        <td className="px-6 py-4">
+                          {i.generatedNumber ? (
+                            <span title="This invoice has no number. SabaiBiz made this reference.">
+                              <span className="font-medium text-teal-900/60">{i.number}</span>
+                              <span className="ml-2 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600">
+                                No number
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="font-semibold text-teal-950">{i.number}</span>
+                          )}
+                        </td>
                         <td className="px-6 py-4 text-teal-950">{i.supplier}</td>
                         <td className="px-6 py-4 text-teal-900/70">{fmtDate(i.date)}</td>
                         <td className="px-6 py-4 text-right tabular-nums text-teal-900/80">{i.products}</td>
@@ -351,13 +362,13 @@ export default function InvoicesPage() {
                           <StatusBadge status={i.status} />
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <button
-                            type="button"
+                          <Link
+                            href={`/dashboard/invoices/${i.id}`}
                             aria-label={`View invoice ${i.number}`}
                             className="rounded-full border border-teal-200 px-4 py-1.5 text-xs font-semibold text-teal-800 transition hover:bg-teal-700 hover:text-white"
                           >
                             View
-                          </button>
+                          </Link>
                         </td>
                       </tr>
                     ))}

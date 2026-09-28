@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import DashboardNavbar from "../../components/DashboardNavbar";
 import { inputClass, labelClass } from "../../components/FormField";
+import { useUser } from "../../context/UserContext";
 import {
   bangkokToday,
   fetchPriceAlerts,
@@ -463,6 +464,7 @@ type LoadState =
   | { status: "ready"; rows: PurchaseRow[]; alerts: PriceAlertRow[] };
 
 export default function PriceAnalysisPage() {
+  const { role } = useUser();
   const [load, setLoad] = useState<LoadState>({ status: "loading" });
   const [firstKey, setFirstKey] = useState<string | null>(null);
   const [secondKey, setSecondKey] = useState<string | null>(null);
@@ -537,7 +539,17 @@ export default function PriceAnalysisPage() {
       <DashboardNavbar />
 
       <main className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-2xl font-bold tracking-tight text-teal-950 sm:text-3xl">Price Analysis</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold tracking-tight text-teal-950 sm:text-3xl">Price Analysis</h1>
+          {role === "owner" && (
+            <Link
+              href="/dashboard/settings/suppliers"
+              className="rounded-full border border-teal-200 px-4 py-2 text-sm font-semibold text-teal-800 transition hover:bg-teal-50"
+            >
+              Manage suppliers
+            </Link>
+          )}
+        </div>
 
         {load.status === "loading" && (
           <p role="status" className="mt-6 rounded-2xl border border-teal-100 bg-white p-8 text-center text-sm text-teal-900/70 shadow-card">

@@ -3,9 +3,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import DashboardNavbar from "../../../components/DashboardNavbar";
-import { bangkokToday, DuplicateInvoiceError, findSavedInvoice, fromIsoDate, saveInvoice } from "../../../../lib/invoices";
+import {
+  bangkokToday,
+  DuplicateInvoiceError,
+  fetchSupplierNames,
+  findSavedInvoice,
+  fromIsoDate,
+  invoiceDateWarning,
+  isIsoDate,
+  saveInvoice,
+  SimilarInvoiceError,
+} from "../../../../lib/invoices";
 import { MAX_INVOICE_PAGES } from "../../../../lib/scanInvoice";
 import { supabase } from "../../../../lib/supabase";
 import type { ScanResult } from "../../../api/scan-invoice/route";
@@ -28,8 +38,6 @@ type InvoicePage = {
   dataUrl: string;
 };
 
-const isValidPastDate = (s: string | null): s is string =>
-  !!s && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s)) && s <= bangkokToday();
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 // Phone photos are often 5-10MB, above Claude's 5MB image limit: shrink to a JPEG data URL.
@@ -82,7 +90,25 @@ async function scanInvoice(pages: InvoicePage[], signal: AbortSignal): Promise<S
   return body as ScanResult;
 }
 
-function TextField({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (v: string) => void }) {
+function TextField({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder = "Not found, please type it",
+  suggestions,
+  hint,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  /** Offered as the owner types (browser autocomplete); any other value can still be typed. */
+  suggestions?: string[];
+  hint?: string | null;
+}) {
+  const listId = suggestions ? `${id}-suggestions` : undefined;
   return (
     <div>
       <label htmlFor={id} className="block font-medium text-teal-900/60">
@@ -93,25 +119,56 @@ function TextField({ id, label, value, onChange }: { id: string; label: string; 
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Not found, please type it"
+        placeholder={placeholder}
+        list={listId}
+        autoComplete="off"
+        aria-describedby={hint ? `${id}-hint` : undefined}
         className="mt-1 w-full rounded-lg border border-teal-200 px-3 py-2 font-semibold text-teal-950 placeholder:font-normal placeholder:text-gray-400 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20"
       />
+      {suggestions && (
+        <datalist id={listId}>
+          {suggestions.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
+      )}
+      {hint && (
+        <p id={`${id}-hint`} className="mt-1.5 text-xs font-medium text-gold-800">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }
 
-function InvoiceDateField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function InvoiceDateField({
+  value,
+  onChange,
+  missing,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  /** No date was printed on the invoice: the owner must type it. */
+  missing: boolean;
+}) {
+  const warning = invoiceDateWarning(value);
   return (
     <div className="mt-6 max-w-xs">
       <label htmlFor="invoice-date" className="block text-sm font-semibold text-teal-950">
         Invoice date
       </label>
-      <p id="invoice-date-hint" className="mt-0.5 text-xs text-gray-500">
-        You can change this if you&apos;re scanning a past invoice.
+      <p
+        id="invoice-date-hint"
+        className={`mt-0.5 text-xs ${missing || warning ? "font-medium text-gold-800" : "text-gray-500"}`}
+      >
+        {missing
+          ? "No date on this invoice — please enter it"
+          : (warning ?? "The date printed on the invoice. You can correct it here.")}
       </p>
       <input
         id="invoice-date"
         type="date"
+        autoComplete="off"
         value={value}
         max={bangkokToday()}
         onChange={(e) => onChange(e.target.value)}
@@ -174,8 +231,8 @@ export default function ScanInvoicePage() {
   const [phase, setPhase] = useState<Phase>("collecting");
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // The official invoice date (not the scan date); defaults to today, editable.
-  const [invoiceDate, setInvoiceDate] = useState(() => bangkokToday());
+  // The official invoice date (not the scan date), from the reading; empty until then, editable.
+  const [invoiceDate, setInvoiceDate] = useState("");
   const [scanError, setScanError] = useState<string | null>(null);
   const [extracted, setExtracted] = useState<ScanResult | null>(null);
   // Editable, so the owner can fix anything Sabai misread.
@@ -187,19 +244,31 @@ export default function ScanInvoicePage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   // Set when this supplier + number is already saved: shown right after reading, before any typing.
   const [alreadySaved, setAlreadySaved] = useState<string | null>(null);
+  // Existing suppliers, suggested in the Supplier field (e.g. "Fruit market" for receipts with no name).
+  const [supplierNames, setSupplierNames] = useState<string[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSupplierNames()
+      .then((names) => !cancelled && setSupplierNames(names))
+      .catch(() => {}); // suggestions are a convenience: typing still works without them
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const products = extracted?.products ?? [];
   // The total printed on the invoice (after VAT and discounts), never the sum of the lines.
   const totalFound = extracted?.invoice_total != null;
   const total = totalFound ? extracted!.invoice_total! : manualTotal.trim() === "" ? null : Number(manualTotal);
   const totalValid = total !== null && Number.isFinite(total) && total >= 0;
+  // The invoice number is optional: small suppliers often only stamp their receipts.
   const canSave =
-    phase === "done" &&
-    !saving &&
-    supplier.trim() !== "" &&
-    invoiceNumber.trim() !== "" &&
-    products.length > 0 &&
-    totalValid;
+    phase === "done" && !saving && supplier.trim() !== "" && isIsoDate(invoiceDate) && products.length > 0 && totalValid;
+  // "A similar invoice already exists" for what is on screen now; editing supplier, date or total hides it.
+  const similarKey = `${supplier.trim().toLowerCase()}|${invoiceDate}|${total}|${invoiceNumber.trim()}`;
+  const [similar, setSimilar] = useState<{ key: string; message: string } | null>(null);
+  const similarWarning = similar?.key === similarKey ? similar.message : null;
   const canEditPages = phase !== "processing" && !saving;
   const canAddPage = canEditPages && !preparing && pages.length < MAX_INVOICE_PAGES;
 
@@ -269,7 +338,8 @@ export default function ScanInvoicePage() {
       setExtracted(result);
       setSupplier(result.supplier_name ?? "");
       setInvoiceNumber(result.invoice_number ?? "");
-      if (isValidPastDate(result.invoice_date)) setInvoiceDate(result.invoice_date);
+      // Never today by default: with no date printed, the owner types it (see InvoiceDateField).
+      setInvoiceDate(isIsoDate(result.invoice_date) ? result.invoice_date : "");
       setPhase("done");
       // Warn now rather than after the owner has checked every line. Saving checks again anyway.
       findSavedInvoice(result.supplier_name ?? "", result.invoice_number ?? "")
@@ -286,22 +356,29 @@ export default function ScanInvoicePage() {
     }
   }
 
-  async function confirmAndSave() {
+  async function confirmAndSave(allowSimilar = false) {
     if (!canSave) return;
     setSaving(true);
     setSaveError(null);
+    setSimilar(null);
     try {
-      await saveInvoice({
-        supplier: supplier.trim(),
-        number: invoiceNumber.trim(),
-        date: invoiceDate,
-        total: total!,
-        items: products.map((p) => ({ name: p.name, quantity: p.quantity, unit: p.unit, unitPrice: p.unit_price })),
-        scanId: extracted?.scan_id ?? null,
-      });
+      await saveInvoice(
+        {
+          supplier: supplier.trim(),
+          number: invoiceNumber.trim(),
+          date: invoiceDate,
+          total: total!,
+          items: products.map((p) => ({ name: p.name, quantity: p.quantity, unit: p.unit, unitPrice: p.unit_price })),
+          scanId: extracted?.scan_id ?? null,
+          supplierLegalName: extracted?.supplier_legal_name ?? null,
+          supplierTaxId: extracted?.supplier_tax_id ?? null,
+        },
+        { allowSimilar },
+      );
       router.push("/dashboard/invoices");
     } catch (e) {
-      setSaveError(e instanceof DuplicateInvoiceError ? e.message : "We couldn't save this invoice. Please try again.");
+      if (e instanceof SimilarInvoiceError) setSimilar({ key: similarKey, message: e.message });
+      else setSaveError(e instanceof DuplicateInvoiceError ? e.message : "We couldn't save this invoice. Please try again.");
       setSaving(false);
     }
   }
@@ -409,7 +486,6 @@ export default function ScanInvoicePage() {
             <p className="mt-4 text-center text-xs text-gray-500">
               Accepted formats: JPG, PNG, PDF. Max size: 10MB. Up to {MAX_INVOICE_PAGES} pages per invoice.
             </p>
-            <InvoiceDateField value={invoiceDate} onChange={setInvoiceDate} />
           </>
         ) : (
           <>
@@ -529,8 +605,26 @@ export default function ScanInvoicePage() {
                 <section aria-label="Extracted data" className="rounded-2xl border-2 border-teal-600 bg-white p-6 shadow-card">
                   <h2 className="text-lg font-semibold text-teal-950">Extracted data</h2>
                   <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                    <TextField id="supplier" label="Supplier" value={supplier} onChange={(v) => { setSupplier(v); setAlreadySaved(null); }} />
-                    <TextField id="invoice-number" label="Invoice number" value={invoiceNumber} onChange={(v) => { setInvoiceNumber(v); setAlreadySaved(null); }} />
+                    <TextField
+                      id="supplier"
+                      label="Supplier"
+                      value={supplier}
+                      onChange={(v) => { setSupplier(v); setAlreadySaved(null); }}
+                      placeholder="Pick or type a supplier"
+                      suggestions={supplierNames}
+                      hint={
+                        extracted && !extracted.supplier_name && supplier.trim() === ""
+                          ? "No supplier name on this invoice — pick one or type a name"
+                          : null
+                      }
+                    />
+                    <TextField
+                      id="invoice-number"
+                      label="Invoice number (optional)"
+                      value={invoiceNumber}
+                      onChange={(v) => { setInvoiceNumber(v); setAlreadySaved(null); }}
+                      placeholder="No number? Leave empty"
+                    />
                   </div>
                   {alreadySaved && (
                     <p role="alert" className="mt-4 rounded-xl bg-gold-50 p-4 text-sm font-medium text-gold-800">
@@ -597,6 +691,7 @@ export default function ScanInvoicePage() {
                           <input
                             id="invoice-total"
                             type="number"
+                            autoComplete="off"
                             inputMode="decimal"
                             min="0"
                             step="0.01"
@@ -617,18 +712,32 @@ export default function ScanInvoicePage() {
               )}
             </div>
 
-            <InvoiceDateField value={invoiceDate} onChange={setInvoiceDate} />
+            <InvoiceDateField value={invoiceDate} onChange={setInvoiceDate} missing={phase === "done" && invoiceDate === ""} />
 
             {saveError && (
               <p role="alert" className="mt-6 text-sm font-medium text-red-600">
                 {saveError}
               </p>
             )}
+            {similarWarning && (
+              <div role="alert" className="mt-6 rounded-xl bg-gold-50 p-4 text-sm text-gold-800">
+                <p className="font-medium">{similarWarning}</p>
+                <p className="mt-1">Two identical purchases on the same day are possible. Save it only if this is a different purchase.</p>
+                <button
+                  type="button"
+                  onClick={() => confirmAndSave(true)}
+                  disabled={saving}
+                  className="mt-3 rounded-full border border-gold-500 px-5 py-2 text-sm font-semibold text-gold-800 transition hover:bg-gold-100 disabled:opacity-60"
+                >
+                  Save anyway
+                </button>
+              </div>
+            )}
             <div className="mt-8 flex flex-wrap items-center gap-4">
               {phase === "done" && (
                 <button
                   type="button"
-                  onClick={confirmAndSave}
+                  onClick={() => confirmAndSave()}
                   disabled={!canSave}
                   className="rounded-full bg-gold-500 px-8 py-4 text-lg font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-gold-500"
                 >
