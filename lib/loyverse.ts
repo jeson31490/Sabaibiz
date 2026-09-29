@@ -34,6 +34,27 @@ export type LoyverseLineItem = {
   total_money?: number;
   cost?: number | null;
   cost_total?: number | null;
+  /** Options chosen for this line (e.g. Protein: Shrimp). Always empty so far on Moustache's receipts. */
+  line_modifiers?: { name?: string | null; option?: string | null }[] | null;
+};
+
+// Menu, as returned by GET /items, /categories and /modifiers (field names checked on a real account;
+// modifiers could not be checked since that account has none, so they are read defensively).
+export type LoyverseItem = {
+  id: string;
+  item_name: string;
+  category_id?: string | null;
+  sold_by_weight?: boolean;
+  deleted_at?: string | null;
+  variants?: { variant_id?: string; default_price?: number | null }[];
+};
+
+export type LoyverseCategory = { id: string; name: string };
+
+export type LoyverseModifier = {
+  id: string;
+  name?: string | null;
+  modifier_options?: { id?: string; name?: string | null; price?: number | null }[] | null;
 };
 
 export type LoyverseReceipt = {
@@ -89,3 +110,21 @@ export function fetchReceiptsPage(token: string, from: Date, to: Date, cursor?: 
   if (cursor) params.cursor = cursor;
   return loyverseGet<ReceiptsPage>(token, "/receipts", params);
 }
+
+/** Every page of a list endpoint (limit 250, following the cursor). */
+async function fetchAll<T>(token: string, path: string, key: string): Promise<T[]> {
+  const all: T[] = [];
+  let cursor: string | undefined;
+  do {
+    const params: Record<string, string> = { limit: "250" };
+    if (cursor) params.cursor = cursor;
+    const page = await loyverseGet<Record<string, unknown>>(token, path, params);
+    all.push(...((page[key] as T[] | undefined) ?? []));
+    cursor = (page.cursor as string | null | undefined) || undefined;
+  } while (cursor);
+  return all;
+}
+
+export const fetchItems = (token: string) => fetchAll<LoyverseItem>(token, "/items", "items");
+export const fetchCategories = (token: string) => fetchAll<LoyverseCategory>(token, "/categories", "categories");
+export const fetchModifiers = (token: string) => fetchAll<LoyverseModifier>(token, "/modifiers", "modifiers");

@@ -10,6 +10,8 @@ export type SyncResult = {
   lastSyncedAt: string | null;
   /** False when the sync ran out of time: calling it again carries on from where it stopped. */
   complete: boolean;
+  /** Menu items imported with this sync, or null if the menu was not refreshed. */
+  menuItems: number | null;
 };
 
 type RawStatus = { provider: string; merchant_name: string | null; last_synced_at: string | null };

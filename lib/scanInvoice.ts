@@ -72,3 +72,53 @@ export function cleanInvoiceNumber(number: string | null, invoiceDate: string | 
   if (invoiceDate && /^[\d\s/.-]+$/.test(n) && dateAsDigits(invoiceDate).includes(n.replace(/\D/g, ""))) return null;
   return n;
 }
+
+export type ContentUnit = "g" | "ml" | "pcs";
+export type ContentSource = "standard" | "printed" | "estimated" | "confirmed";
+export type PurchaseContent = {
+  content_amount: number | null;
+  content_unit: ContentUnit | null;
+  content_source: ContentSource | null;
+};
+
+// Units that are themselves a weight or volume: the content of one unit is certain.
+const STANDARD_UNITS: Record<string, { amount: number; unit: ContentUnit }> = {
+  kg: { amount: 1000, unit: "g" }, kgs: { amount: 1000, unit: "g" }, kilo: { amount: 1000, unit: "g" },
+  "กก": { amount: 1000, unit: "g" }, "กิโล": { amount: 1000, unit: "g" }, "กิโลกรัม": { amount: 1000, unit: "g" },
+  g: { amount: 1, unit: "g" }, gr: { amount: 1, unit: "g" }, gram: { amount: 1, unit: "g" }, "กรัม": { amount: 1, unit: "g" },
+  l: { amount: 1000, unit: "ml" }, lt: { amount: 1000, unit: "ml" }, ltr: { amount: 1000, unit: "ml" },
+  liter: { amount: 1000, unit: "ml" }, litre: { amount: 1000, unit: "ml" }, "ลิตร": { amount: 1000, unit: "ml" },
+  ml: { amount: 1, unit: "ml" }, "มล": { amount: 1, unit: "ml" },
+};
+
+/**
+ * What one purchase unit contains. A weight or volume unit (kg, กก, L…) is "standard" and always
+ * wins; otherwise the size read from the invoice ("printed") or guessed ("estimated") is kept if
+ * it makes sense. Everything null = "Needs conversion".
+ */
+export function purchaseContent(line: {
+  unit: string;
+  content_amount?: number | null;
+  content_unit?: ContentUnit | null;
+  content_source?: ContentSource | null;
+}): PurchaseContent {
+  const standard = STANDARD_UNITS[line.unit.trim().toLowerCase().replace(/\./g, "")];
+  if (standard) return { content_amount: standard.amount, content_unit: standard.unit, content_source: "standard" };
+  const amount = line.content_amount;
+  if (typeof amount === "number" && Number.isFinite(amount) && amount > 0 && line.content_unit && line.content_source) {
+    return { content_amount: Math.round(amount * 10000) / 10000, content_unit: line.content_unit, content_source: line.content_source };
+  }
+  return { content_amount: null, content_unit: null, content_source: null };
+}
+
+/** Categories of purchased products. Only food and resale are used in recipes; all count as costs. */
+export const PRODUCT_CATEGORIES = ["food", "resale", "packaging", "equipment", "cleaning"] as const;
+export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
+
+export const CATEGORY_LABELS: Record<ProductCategory, string> = {
+  food: "Food & ingredients",
+  resale: "Drinks for resale",
+  packaging: "Packaging & consumables",
+  equipment: "Kitchen equipment",
+  cleaning: "Cleaning & other",
+};

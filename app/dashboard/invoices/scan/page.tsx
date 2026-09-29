@@ -16,7 +16,7 @@ import {
   saveInvoice,
   SimilarInvoiceError,
 } from "../../../../lib/invoices";
-import { MAX_INVOICE_PAGES } from "../../../../lib/scanInvoice";
+import { CATEGORY_LABELS, MAX_INVOICE_PAGES } from "../../../../lib/scanInvoice";
 import { supabase } from "../../../../lib/supabase";
 import type { ScanResult } from "../../../api/scan-invoice/route";
 
@@ -39,6 +39,16 @@ type InvoicePage = {
 };
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** "1 bottle = 400 ml", "1 pcs ≈ 300 g (estimated)", or "Size unknown" (set later in Ingredients). */
+function sizeLabel(p: ScanResult["products"][number]): string {
+  if (!p.content_amount || !p.content_unit) return "Size unknown: set it later in Ingredients";
+  const amount = p.content_amount.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  if (p.content_source === "standard") return `per ${p.unit}`;
+  return p.content_source === "estimated"
+    ? `1 ${p.unit} ≈ ${amount} ${p.content_unit} (estimated)`
+    : `1 ${p.unit} = ${amount} ${p.content_unit}`;
+}
 
 // Phone photos are often 5-10MB, above Claude's 5MB image limit: shrink to a JPEG data URL.
 async function shrinkImage(file: File): Promise<string> {
@@ -368,7 +378,16 @@ export default function ScanInvoicePage() {
           number: invoiceNumber.trim(),
           date: invoiceDate,
           total: total!,
-          items: products.map((p) => ({ name: p.name, quantity: p.quantity, unit: p.unit, unitPrice: p.unit_price })),
+          items: products.map((p) => ({
+            name: p.name,
+            quantity: p.quantity,
+            unit: p.unit,
+            unitPrice: p.unit_price,
+            content_amount: p.content_amount,
+            content_unit: p.content_unit,
+            content_source: p.content_source,
+            category: p.category,
+          })),
           scanId: extracted?.scan_id ?? null,
           supplierLegalName: extracted?.supplier_legal_name ?? null,
           supplierTaxId: extracted?.supplier_tax_id ?? null,
@@ -650,7 +669,10 @@ export default function ScanInvoicePage() {
                         <tbody className="divide-y divide-teal-100">
                           {products.map((p, i) => (
                             <tr key={i}>
-                              <td className="py-2.5 pr-2 font-medium text-teal-950">{p.name}</td>
+                              <td className="py-2.5 pr-2 font-medium text-teal-950">
+                                {p.name}
+                                <span className="block text-xs font-normal text-teal-900/55">{p.category ? CATEGORY_LABELS[p.category] : "Category unknown: needs review"} · {sizeLabel(p)}</span>
+                              </td>
                               <td className="py-2.5 pr-2 text-right tabular-nums text-teal-900/75">{fmt(p.quantity)}</td>
                               <td className="py-2.5 pr-2 text-teal-900/75">{p.unit}</td>
                               <td className="py-2.5 text-right tabular-nums text-teal-950">{fmt(p.unit_price)} ฿</td>

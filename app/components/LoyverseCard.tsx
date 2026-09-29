@@ -80,11 +80,9 @@ export default function LoyverseCard() {
         imported += result.imported;
         setState({ kind: "ready", connection: { ...connection, lastSyncedAt: result.lastSyncedAt } });
         if (result.complete) {
-          setNotice(
-            imported === 0
-              ? "Your sales are up to date."
-              : `${imported} new receipt${imported === 1 ? "" : "s"} imported.`,
-          );
+          const sales =
+            imported === 0 ? "Your sales are up to date." : `${imported} new receipt${imported === 1 ? "" : "s"} imported.`;
+          setNotice(result.menuItems === null ? sales : `${sales} Menu updated: ${result.menuItems} items.`);
           return;
         }
       }

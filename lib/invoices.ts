@@ -1,4 +1,4 @@
-import { shortSupplierName } from "./scanInvoice";
+import { shortSupplierName, type ContentUnit, type ProductCategory, type PurchaseContent } from "./scanInvoice";
 import { supabase } from "./supabase";
 
 export type InvoiceStatus = "processed" | "pending" | "error";
@@ -80,6 +80,21 @@ export async function fetchInvoices(
     total: Number(r.total),
     status: r.status,
   }));
+}
+
+/** Sum of the invoices whose invoice date (printed on it) is in the range, both ends included. */
+export async function fetchCostsForPeriod(range: { from: string; to: string }): Promise<{ total: number; count: number }> {
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("total")
+    .gte("invoice_date", range.from)
+    .lte("invoice_date", range.to)
+    .neq("status", "error");
+  if (error) throw error;
+  const rows = (data ?? []) as { total: number | string }[];
+  // Add up in satang to avoid floating-point drift.
+  const satang = rows.reduce((s, r) => s + Math.round(Number(r.total) * 100), 0);
+  return { total: satang / 100, count: rows.length };
 }
 
 /**
@@ -197,7 +212,9 @@ export type NewInvoice = {
   date: string;
   /** Final amount payable as printed on the invoice, including VAT and discounts. */
   total: number;
-  items: { name: string; quantity: number; unit: string; unitPrice: number }[];
+  /** content_*: what one purchase unit contains (see purchaseContent in lib/scanInvoice.ts). */
+  items: ({ name: string; quantity: number; unit: string; unitPrice: number; category?: ProductCategory | null } &
+    Partial<PurchaseContent>)[];
   /** The Claude reading it came from (invoice_scans), to know what it cost. */
   scanId?: string | null;
   /** As printed on the invoice, when it is: the tax ID finds the supplier whatever name was read. */
@@ -330,6 +347,64 @@ export async function currentBusinessId(): Promise<string> {
   return data as string;
 }
 
+/** Product names match ignoring case and spaces, like the unique index in supabase/11_ingredients_recipes.sql. */
+const productKey = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+
+/**
+ * Links each invoice line to a product of the catalogue, creating the missing ones. A line with no
+ * size read gets the size the owner already confirmed for that product and purchase unit, if any.
+ */
+async function withProducts<T extends NewInvoice["items"][number]>(
+  userId: string,
+  items: T[],
+): Promise<(T & { productId: string | null })[]> {
+  const { data, error } = await supabase.from("products").select("id, name").eq("user_id", userId);
+  if (error) throw error;
+  const byKey = new Map(((data ?? []) as { id: string; name: string }[]).map((p) => [productKey(p.name), p.id]));
+
+  for (const item of items) {
+    const key = productKey(item.name);
+    if (!key || byKey.has(key)) continue;
+    const { data: created, error: createError } = await supabase
+      .from("products")
+      // A new product takes the category read on this invoice; null = "Needs review" in Ingredients.
+      .insert({
+        user_id: userId,
+        name: item.name.trim().replace(/\s+/g, " "),
+        base_unit: item.content_unit ?? null,
+        category: item.category ?? null,
+      })
+      .select("id")
+      .single();
+    if (created) byKey.set(key, created.id);
+    // 23505: created meanwhile (another line or another phone); found on the next save. Never blocks saving.
+    else if (createError?.code !== "23505") throw createError;
+  }
+
+  const lines = items.map((i) => ({ ...i, productId: byKey.get(productKey(i.name)) ?? null }));
+
+  // Reuse sizes the owner confirmed in Ingredients ("1 ชร = 12 pcs"), for the same product and unit.
+  const missing = lines.filter((l) => l.productId && !l.content_source);
+  if (missing.length > 0) {
+    const { data: confirmed, error: confirmedError } = await supabase
+      .from("invoice_items")
+      .select("product_id, unit, content_amount, content_unit")
+      .in("product_id", [...new Set(missing.map((l) => l.productId!))])
+      .eq("content_source", "confirmed");
+    if (confirmedError) throw confirmedError;
+    const sizes = new Map(
+      ((confirmed ?? []) as { product_id: string; unit: string; content_amount: number; content_unit: ContentUnit }[]).map(
+        (c) => [`${c.product_id}|${productKey(c.unit)}`, c],
+      ),
+    );
+    for (const l of missing) {
+      const size = sizes.get(`${l.productId}|${productKey(l.unit)}`);
+      if (size) Object.assign(l, { content_amount: Number(size.content_amount), content_unit: size.content_unit, content_source: "confirmed" });
+    }
+  }
+  return lines;
+}
+
 /** Saves a confirmed invoice and its line items, creating the supplier if it's new. Returns the invoice id. */
 export async function saveInvoice(
   invoice: NewInvoice,
@@ -385,14 +460,19 @@ export async function saveInvoice(
   }
 
   if (invoice.items.length > 0) {
+    const lines = await withProducts(userId, invoice.items);
     const { error: itemsError } = await supabase.from("invoice_items").insert(
-      invoice.items.map((i) => ({
+      lines.map((i) => ({
         invoice_id: saved.id,
         user_id: userId,
         product_name: i.name,
         quantity: i.quantity,
         unit: i.unit,
         unit_price: i.unitPrice,
+        product_id: i.productId,
+        content_amount: i.content_amount ?? null,
+        content_unit: i.content_unit ?? null,
+        content_source: i.content_source ?? null,
       })),
     );
     if (itemsError) {

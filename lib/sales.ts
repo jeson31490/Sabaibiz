@@ -1,59 +1,57 @@
-import { bangkokToday } from "./invoices";
 import { fetchLoyverseStatus } from "./pos";
+import { bangkokInstants, type ResolvedPeriod } from "./periods";
 import { supabase } from "./supabase";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-export type TodaySales =
+export type PeriodSales =
   | { connected: false }
+  | { connected: true; synced: false }
   | {
       connected: true;
-      /** Net sales (refunds deducted), including tax, from midnight Bangkok time to the last sync. */
+      synced: true;
+      /** Net sales (refunds deducted), including tax. */
       revenue: number;
       /** Sale receipts; refunds are not counted as tickets. */
       tickets: number;
-      /** Same weekday last week, over the same hours (midnight → time of the last sync). */
-      lastWeekRevenue: number;
-      /** Null when today hasn't been synced yet. */
-      syncedUntil: string | null;
+      /** Same measure over the comparison period, over the same length of time. */
+      previousRevenue: number;
+      /** Set when the period isn't over or not fully imported: numbers stop at this moment. */
+      until: string | null;
     };
 
-async function salesBetween(from: Date, to: Date): Promise<{ revenue: number; tickets: number }> {
-  if (to <= from) return { revenue: 0, tickets: 0 };
-  const { data, error } = await supabase
-    .from("sales")
-    .select("total_money, receipt_type")
-    .gte("receipt_date", from.toISOString())
-    .lt("receipt_date", to.toISOString());
+async function totals(start: Date, end: Date): Promise<{ revenue: number; tickets: number }> {
+  if (end <= start) return { revenue: 0, tickets: 0 };
+  // Added up in the database (supabase/12_sales_totals.sql): a month is thousands of receipts.
+  const { data, error } = await supabase.rpc("sales_totals", { p_from: start.toISOString(), p_to: end.toISOString() });
   if (error) throw error;
-  const rows = (data ?? []) as { total_money: number | string; receipt_type: "SALE" | "REFUND" }[];
-  // Refunds are stored negative (see lib/loyverseSync.ts). Add up in satang to avoid floating-point drift.
-  const satang = rows.reduce((s, r) => s + Math.round(Number(r.total_money) * 100), 0);
-  return { revenue: satang / 100, tickets: rows.filter((r) => r.receipt_type === "SALE").length };
+  const row = (data as { revenue: number | string; tickets: number }[] | null)?.[0];
+  return { revenue: Number(row?.revenue ?? 0), tickets: Number(row?.tickets ?? 0) };
 }
 
-/** Today's Loyverse sales so far (Bangkok time), compared with the same day last week. */
-export async function fetchTodaySales(): Promise<TodaySales> {
+/** Loyverse sales over a period (Bangkok days), compared with its comparison period. */
+export async function fetchPeriodSales(period: ResolvedPeriod): Promise<PeriodSales> {
   const status = await fetchLoyverseStatus();
   if (!status) return { connected: false };
 
-  // Thailand has no daylight saving time, so a Bangkok day is always exactly 24 hours.
-  const todayStart = new Date(`${bangkokToday()}T00:00:00+07:00`);
+  const { start, end } = bangkokInstants(period);
   const lastSync = status.lastSyncedAt ? new Date(status.lastSyncedAt) : null;
-  // Only compare hours we have for today: sales after the last sync aren't imported yet.
-  const until = lastSync && lastSync > todayStart ? new Date(Math.min(lastSync.getTime(), Date.now())) : null;
-  const hours = until ? until.getTime() - todayStart.getTime() : 0;
-  const lastWeekStart = new Date(todayStart.getTime() - 7 * DAY_MS);
+  if (!lastSync || lastSync <= start) return { connected: true, synced: false };
 
-  const [today, lastWeek] = await Promise.all([
-    salesBetween(todayStart, new Date(todayStart.getTime() + hours)),
-    salesBetween(lastWeekStart, new Date(lastWeekStart.getTime() + hours)),
+  // Sales after the last sync (or in the future) aren't imported yet: stop there, and compare
+  // with the same length of the previous period so a morning isn't compared with a whole day.
+  const cutEnd = new Date(Math.min(end.getTime(), lastSync.getTime(), Date.now()));
+  const cut = end.getTime() - cutEnd.getTime();
+  const previous = bangkokInstants(period.previous);
+
+  const [current, before] = await Promise.all([
+    totals(start, cutEnd),
+    totals(previous.start, new Date(previous.end.getTime() - cut)),
   ]);
   return {
     connected: true,
-    revenue: today.revenue,
-    tickets: today.tickets,
-    lastWeekRevenue: lastWeek.revenue,
-    syncedUntil: until ? until.toISOString() : null,
+    synced: true,
+    revenue: current.revenue,
+    tickets: current.tickets,
+    previousRevenue: before.revenue,
+    until: cut > 0 ? cutEnd.toISOString() : null,
   };
 }

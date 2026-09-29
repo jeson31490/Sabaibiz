@@ -2,17 +2,22 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import {
+  bangkokToday,
+  fetchCostsForPeriod,
+  fetchCostsScannedToday,
   fetchInvoices,
   fetchPriceAlerts,
-  fetchCostsScannedToday,
   fromIsoDate,
   type InvoiceRow,
   type PriceAlertRow,
 } from "../../lib/invoices";
-import { fetchTodaySales, type TodaySales } from "../../lib/sales";
+import { isPeriodId, PERIODS, resolvePeriod, type PeriodId, type ResolvedPeriod } from "../../lib/periods";
+import { fetchPeriodSales, type PeriodSales } from "../../lib/sales";
 import { useUser } from "../context/UserContext";
+import { inputClass, labelClass } from "./FormField";
 import PriceAlertsCard from "./PriceAlertsCard";
 
 type State =
@@ -31,22 +36,34 @@ const fmtDate = (iso: string) =>
   fromIsoDate(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit" });
-const lastWeekDay = () => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toLocaleDateString("en-GB", { timeZone: "Asia/Bangkok", weekday: "long" });
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-/** Value and note of the "Today's Revenue" card. */
-function revenueCard(sales: TodaySales | "loading" | "error"): { value: string; note: string } {
+type Loadable<T> = T | "loading" | "error";
+type Costs = { total: number; count: number };
+
+/** Value and note of the Revenue card. */
+function revenueCard(sales: Loadable<PeriodSales>, period: ResolvedPeriod): { value: string; note: string } {
   if (sales === "loading") return { value: "…", note: "Loading" };
   if (sales === "error") return { value: "—", note: "Sales are unavailable right now" };
   if (!sales.connected) return { value: "—", note: "Connect Loyverse in Settings to see your sales" };
-  if (!sales.syncedUntil) return { value: "—", note: "Not synced yet today. Use “Sync sales now” in Settings." };
+  if (!sales.synced) return { value: "—", note: "Not synced yet for this period. Use “Sync sales now” in Settings." };
 
-  const tickets = `${sales.tickets} ticket${sales.tickets === 1 ? "" : "s"}`;
-  let comparison = `no sales last ${lastWeekDay()}`;
-  if (sales.lastWeekRevenue > 0) {
-    const pct = Math.round(((sales.revenue - sales.lastWeekRevenue) / sales.lastWeekRevenue) * 100);
-    comparison = `${pct >= 0 ? "+" : ""}${pct}% vs last ${lastWeekDay()}`;
+  let comparison = `nothing to compare ${period.comparisonLabel}`;
+  if (sales.previousRevenue > 0) {
+    const pct = Math.round(((sales.revenue - sales.previousRevenue) / sales.previousRevenue) * 100);
+    comparison = `${pct >= 0 ? "+" : ""}${pct}% ${period.comparisonLabel}`;
   }
-  return { value: fmtBaht(sales.revenue), note: `${tickets} · ${comparison} · until ${fmtTime(sales.syncedUntil)}` };
+  const until = sales.until ? ` · until ${fmtTime(sales.until)}` : "";
+  return { value: fmtBaht(sales.revenue), note: `${plural(sales.tickets, "ticket")} · ${comparison}${until}` };
+}
+
+/** Result = Revenue − Costs, only when both are known. */
+function resultCard(sales: Loadable<PeriodSales>, costs: Loadable<Costs>): { value: string; note: string } {
+  if (sales === "loading" || costs === "loading") return { value: "…", note: "Loading" };
+  if (costs === "error" || sales === "error" || !sales.connected || !sales.synced) {
+    return { value: "—", note: "Needs your Loyverse sales for this period" };
+  }
+  return { value: fmtBaht(Math.round((sales.revenue - costs.total) * 100) / 100), note: "Revenue − invoice costs" };
 }
 
 function IconCheck({ className }: { className?: string }) {
@@ -109,19 +126,53 @@ function StatusBadge({ status }: { status: InvoiceRow["status"] }) {
 
 export default function DashboardContent() {
   const { user } = useUser();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [state, setState] = useState<State>({ status: "loading" });
-  // Loaded on its own, so a Loyverse problem never hides the invoices.
-  const [sales, setSales] = useState<TodaySales | "loading" | "error">("loading");
+
+  // The period lives in the URL (?period=yesterday, or ?period=custom&from=…&to=…), Today by default.
+  const periodParam = searchParams.get("period");
+  const periodId: PeriodId = isPeriodId(periodParam) ? periodParam : "today";
+  const customFrom = searchParams.get("from") ?? "";
+  const customTo = searchParams.get("to") ?? "";
+  const period = useMemo(
+    () => resolvePeriod(periodId, { from: customFrom, to: customTo }),
+    [periodId, customFrom, customTo],
+  );
+  const periodKey = `${period.from}|${period.to}`;
+
+  function setPeriod(id: PeriodId, custom?: { from: string; to: string }) {
+    const params = new URLSearchParams();
+    if (id !== "today") params.set("period", id);
+    if (id === "custom") {
+      const range = custom ?? { from: period.from, to: period.to };
+      params.set("from", range.from);
+      params.set("to", range.to);
+    }
+    const query = params.toString();
+    router.replace(query ? `?${query}` : "?", { scroll: false });
+  }
+
+  // Loaded on their own and per period, so a Loyverse problem never hides the invoices.
+  // Tagged with the period they belong to, so a slow answer never shows under another period.
+  const [figures, setFigures] = useState<{ key: string; sales: Loadable<PeriodSales>; costs: Loadable<Costs> } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetchTodaySales()
-      .then((s) => !cancelled && setSales(s))
-      .catch(() => !cancelled && setSales("error"));
+    const key = `${period.from}|${period.to}`;
+    fetchPeriodSales(period)
+      .then((sales) => !cancelled && setFigures((f) => ({ key, costs: f?.key === key ? f.costs : "loading", sales })))
+      .catch(() => !cancelled && setFigures((f) => ({ key, costs: f?.key === key ? f.costs : "loading", sales: "error" })));
+    fetchCostsForPeriod(period)
+      .then((costs) => !cancelled && setFigures((f) => ({ key, sales: f?.key === key ? f.sales : "loading", costs })))
+      .catch(() => !cancelled && setFigures((f) => ({ key, sales: f?.key === key ? f.sales : "loading", costs: "error" })));
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [period]);
+
+  const sales: Loadable<PeriodSales> = figures?.key === periodKey ? figures.sales : "loading";
+  const costs: Loadable<Costs> = figures?.key === periodKey ? figures.costs : "loading";
 
   useEffect(() => {
     let cancelled = false;
@@ -146,18 +197,22 @@ export default function DashboardContent() {
   }, []);
 
   const ready = state.status === "ready" ? state : null;
+  const costsNote =
+    costs === "loading"
+      ? "Loading"
+      : costs === "error"
+        ? "Invoices are unavailable right now"
+        : `${plural(costs.count, "invoice")} dated in this period` +
+          // For Today, what was scanned today (whatever date is printed on it) stays useful.
+          (periodId === "today" && ready ? ` · ${fmtBaht(ready.today.total)} scanned today` : "");
   const kpis = [
-    { label: "Today's Revenue", ...revenueCard(sales) },
+    { label: "Revenue", ...revenueCard(sales, period) },
     {
-      label: "Costs scanned today",
-      value: ready ? fmtBaht(ready.today.total) : "…",
-      note: !ready
-        ? "Loading"
-        : ready.today.count > 0
-          ? `${ready.today.count} invoice${ready.today.count > 1 ? "s" : ""} scanned today`
-          : "No invoices scanned today",
+      label: "Costs",
+      value: costs === "loading" ? "…" : costs === "error" ? "—" : fmtBaht(costs.total),
+      note: costsNote,
     },
-    { label: "Today's Profit", value: "—", note: "No data yet" },
+    { label: "Result", ...resultCard(sales, costs) },
   ];
 
   return (
@@ -165,8 +220,67 @@ export default function DashboardContent() {
       <main className="mx-auto max-w-6xl space-y-8 px-6 py-8">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-teal-950 sm:text-3xl">Welcome to SabaiBiz</h1>
-          <p className="mt-1 text-sm text-teal-900/65">Here&apos;s how {user.businessName} is doing today.</p>
+          <p className="mt-1 text-sm text-teal-900/65">
+            Here&apos;s how {user.businessName} is doing{" "}
+            {periodId === "custom"
+              ? `from ${fmtDate(period.from)} to ${fmtDate(period.to)}`
+              : PERIODS.find((p) => p.id === periodId)!.label.toLowerCase()}
+            .
+          </p>
         </div>
+
+        <section aria-label="Period">
+          <div role="radiogroup" aria-label="Period" className="flex flex-wrap gap-2">
+            {PERIODS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                role="radio"
+                aria-checked={periodId === p.id}
+                onClick={() => setPeriod(p.id)}
+                className={`rounded-full px-5 py-2 text-sm font-semibold transition ${
+                  periodId === p.id
+                    ? "bg-teal-700 text-white shadow-card"
+                    : "border border-teal-200 bg-white text-teal-800 hover:bg-teal-50"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          {periodId === "custom" && (
+            <div className="mt-4 flex flex-wrap items-end gap-4">
+              <div>
+                <label htmlFor="period-from" className={labelClass}>
+                  From
+                </label>
+                <input
+                  id="period-from"
+                  type="date"
+                  autoComplete="off"
+                  max={bangkokToday()}
+                  value={period.from}
+                  onChange={(e) => e.target.value && setPeriod("custom", { from: e.target.value, to: period.to })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="period-to" className={labelClass}>
+                  To
+                </label>
+                <input
+                  id="period-to"
+                  type="date"
+                  autoComplete="off"
+                  max={bangkokToday()}
+                  value={period.to}
+                  onChange={(e) => e.target.value && setPeriod("custom", { from: period.from, to: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          )}
+        </section>
 
         {state.status === "error" && (
           <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
@@ -175,7 +289,7 @@ export default function DashboardContent() {
         )}
 
         {/* KPI cards */}
-        <section aria-label="Today's numbers" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section aria-label="Key numbers" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {kpis.map(({ label, value, note }) => (
             <div key={label} className="rounded-2xl border border-teal-100 bg-white p-6 shadow-card">
               <p className="text-sm font-medium text-teal-900/65">{label}</p>

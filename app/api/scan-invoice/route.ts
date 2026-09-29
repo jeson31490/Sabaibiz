@@ -2,7 +2,15 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { cleanInvoiceNumber, cleanTaxId, MAX_INVOICE_PAGES, shortSupplierName } from "../../../lib/scanInvoice";
+import {
+  cleanInvoiceNumber,
+  cleanTaxId,
+  MAX_INVOICE_PAGES,
+  PRODUCT_CATEGORIES,
+  purchaseContent,
+  type PurchaseContent,
+  shortSupplierName,
+} from "../../../lib/scanInvoice";
 import { supabase } from "../../../lib/supabase";
 
 // Reading a long invoice can take a while.
@@ -49,6 +57,19 @@ const ScannedInvoiceSchema = z.object({
       quantity: z.number(),
       unit: z.string().describe("Unit of measure, e.g. kg, g, L, ml, pcs, box, pack, bottle"),
       unit_price: z.number().describe("Price for one unit, in Thai baht"),
+      content_amount: z
+        .number()
+        .nullable()
+        .describe("What ONE purchase unit contains, in content_unit: 400 for a 400ml bottle, 7800 for a carton of 24 x 325ml"),
+      content_unit: z.enum(["g", "ml", "pcs"]).nullable(),
+      category: z
+        .enum(PRODUCT_CATEGORIES)
+        .nullable()
+        .describe("food, resale, packaging, equipment or cleaning; null if you can't tell what the product is"),
+      content_source: z
+        .enum(["printed", "estimated"])
+        .nullable()
+        .describe("printed: the size is written on the invoice; estimated: your typical-size guess"),
     }),
   ),
 });
@@ -56,7 +77,10 @@ const ScannedInvoiceSchema = z.object({
 export type ScannedInvoice = z.infer<typeof ScannedInvoiceSchema>;
 
 /** What the route returns: the invoice, plus the id of this reading in invoice_scans (null if it couldn't be recorded). */
-export type ScanResult = ScannedInvoice & { scan_id: string | null };
+export type ScanResult = Omit<ScannedInvoice, "products"> & {
+  products: (Omit<ScannedInvoice["products"][number], keyof PurchaseContent> & PurchaseContent)[];
+  scan_id: string | null;
+};
 
 const PROMPT = `These are the pages of one supplier invoice or receipt from a restaurant or shop in Thailand, in order. Read all pages together as a single invoice. Extract:
 - supplier_name: the short trading name of the business that issued the invoice (the seller, not the buyer), as a customer would say it: "Makro", "Tops", "Big C", "Lotus's", "HomePro". Never add the legal company name, a branch, "Co., Ltd.", "บริษัท … จำกัด" or anything in parentheses. The same shop must always get the same short name: Siam Makro and CP Axtra receipts are both "Makro". Use null when no seller name is printed, as on many market and small family receipts that only show a date, the products and a total; the owner will pick the supplier. Never use the buyer's name, a product name or a stamp you can't read.
@@ -70,6 +94,7 @@ const PROMPT = `These are the pages of one supplier invoice or receipt from a re
   Supermarket and wholesale receipts (Makro, Lotus's, Big C, CP Freshmart) often print a TOTAL first and then promotion or member discounts as minus lines; the amount payable is the one after those discounts, often labelled "ยอดสุทธิ", "ยอดชำระ", "NET", "NET TOTAL" or "Amount due". Never use the cash handed over ("เงินสด", "รับเงิน", "CASH"), the change ("เงินทอน", "CHANGE"), the amount before VAT ("มูลค่าสินค้า", "VATABLE"), the VAT line or an item count.
 - invoice_total_label: the label printed next to the amount you used for invoice_total, exactly as printed.
 - products: every purchased line item, with its name, quantity, unit and unit price in baht.
+- For each product, content_amount + content_unit: what ONE purchase unit contains, in grams (g), millilitres (ml) or pieces (pcs), so a price per gram, ml or piece can be worked out. Examples: "Ketchup 400ml", unit bottle → 400 ml; "cream cheese 250g", unit piece → 250 g; "Condensed milk 325ml x24 cans", unit carton → 7800 ml (24 × 325); "Eggs 30 pcs", unit tray → 30 pcs; "gloves 1x100", unit box → 100 pcs. Set content_source to "printed" when the size is written on the invoice. When nothing is written (1 lettuce, 1 bunch of basil, 1 tray), give your best estimate of a typical size in Thailand (e.g. 1 lettuce ≈ 300 g) with content_source "estimated". When the unit is itself a weight or volume (kg, g, L, ml), you may leave all three null. When you cannot tell at all, use null for all three.
 
 Write product names in English; if a name is printed only in Thai, translate it and keep it short (e.g. "Chicken breast"). If a line shows only a line total, divide it by the quantity to get the unit price. Leave out discounts, VAT, service charge, deposits and subtotal lines. Use null for any header field or total you cannot read.
 
@@ -209,7 +234,10 @@ export async function POST(request: Request) {
       // Safety net on top of the prompt: a date read as the number is dropped, so an AUTO-… reference is made.
       invoice_number: cleanInvoiceNumber(invoice.invoice_number, invoice.invoice_date),
       // Drop lines the database would reject.
-      products: invoice.products.filter((p) => p.name.trim() && p.quantity > 0 && p.unit_price >= 0),
+      products: invoice.products
+        .filter((p) => p.name.trim() && p.quantity > 0 && p.unit_price >= 0)
+        // A unit that is itself a weight or volume (kg, กก, L…) always wins over the AI's reading.
+        .map((p) => ({ ...p, ...purchaseContent(p) })),
       scan_id: scanId,
     } satisfies ScanResult);
   } catch (error) {
