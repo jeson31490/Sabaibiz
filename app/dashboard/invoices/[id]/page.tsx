@@ -133,6 +133,18 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
     );
   }
 
+  /** Moves a line up (-1) or down (+1): the order saved is the order shown, the paper order. */
+  function moveLine(index: number, direction: -1 | 1) {
+    setDraft((d) => {
+      if (!d) return d;
+      const target = index + direction;
+      if (target < 0 || target >= d.lines.length) return d;
+      const lines = [...d.lines];
+      [lines[index], lines[target]] = [lines[target], lines[index]];
+      return { ...d, lines };
+    });
+  }
+
   function addLine() {
     setDraft((d) =>
       d
@@ -362,14 +374,34 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
                                 </p>
                               )}
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => setDraft({ ...draft, lines: draft.lines.filter((x) => x.key !== l.key) })}
-                              className="mt-5 rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
-                              aria-label={`Remove line ${index + 1}`}
-                            >
-                              Remove
-                            </button>
+                            <div className="mt-5 flex gap-1">
+                              <button
+                                type="button"
+                                onClick={() => moveLine(index, -1)}
+                                disabled={index === 0}
+                                className="rounded-full border border-teal-200 px-2.5 py-1.5 text-xs font-semibold text-teal-800 transition hover:bg-teal-50 disabled:opacity-40"
+                                aria-label={`Move line ${index + 1} up`}
+                              >
+                                ↑
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => moveLine(index, 1)}
+                                disabled={index === draft.lines.length - 1}
+                                className="rounded-full border border-teal-200 px-2.5 py-1.5 text-xs font-semibold text-teal-800 transition hover:bg-teal-50 disabled:opacity-40"
+                                aria-label={`Move line ${index + 1} down`}
+                              >
+                                ↓
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDraft({ ...draft, lines: draft.lines.filter((x) => x.key !== l.key) })}
+                                className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                                aria-label={`Remove line ${index + 1}`}
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </div>
 
                           <div className="mt-3 grid gap-3 sm:grid-cols-4">

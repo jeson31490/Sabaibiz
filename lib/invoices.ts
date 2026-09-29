@@ -478,12 +478,14 @@ export async function saveInvoice(
   if (invoice.items.length > 0) {
     const lines = await withProducts(userId, invoice.items);
     const { error: itemsError } = await supabase.from("invoice_items").insert(
-      lines.map((i) => ({
+      lines.map((i, index) => ({
         invoice_id: saved.id,
         user_id: userId,
         product_name: i.name,
         original_name: i.originalName?.trim() || null,
         printed_line_total: i.printedLineTotal ?? null,
+        // Paper order: the scan returns the lines in the order printed, across all pages.
+        line_position: index + 1,
         // "Check line" until the owner corrects or confirms it (Ingredients → Needs review).
         review_reason: checkLine(i.quantity, i.unitPrice, i.printedLineTotal).mismatch ? "line_mismatch" : null,
         quantity: i.quantity,
@@ -610,6 +612,7 @@ export async function fetchInvoice(id: string): Promise<InvoiceDetail | null> {
         "invoice_items(id, product_name, original_name, quantity, unit, unit_price, content_amount, content_unit, content_source, review_reason, printed_line_total, products(name))",
     )
     .eq("id", id)
+    .order("line_position", { referencedTable: "invoice_items", nullsFirst: false })
     .order("id", { referencedTable: "invoice_items" })
     .maybeSingle();
   if (error) throw error;
@@ -682,10 +685,10 @@ export async function updateInvoiceLines(invoiceId: string, lines: InvoiceLineIn
 
   const { data: before, error: beforeError } = await supabase
     .from("invoice_items")
-    .select("id, product_name, original_name, quantity, unit, unit_price, content_amount, content_unit, product_id, printed_line_total")
+    .select("id, product_name, original_name, quantity, unit, unit_price, content_amount, content_unit, product_id, printed_line_total, line_position")
     .eq("invoice_id", invoiceId);
   if (beforeError) throw beforeError;
-  type Before = { id: string; product_name: string; original_name: string | null; quantity: number | string; unit: string; unit_price: number | string; content_amount: number | string | null; content_unit: ContentUnit | null; product_id: string | null; printed_line_total: number | string | null };
+  type Before = { id: string; product_name: string; original_name: string | null; quantity: number | string; unit: string; unit_price: number | string; content_amount: number | string | null; content_unit: ContentUnit | null; product_id: string | null; printed_line_total: number | string | null; line_position: number | null };
   const old = new Map(((before ?? []) as Before[]).map((b) => [b.id, b]));
 
   // Products: link to the one with this name, or create it (taking the category of the product it replaces).
@@ -709,7 +712,7 @@ export async function updateInvoiceLines(invoiceId: string, lines: InvoiceLineIn
   }
 
   const touchedProducts = new Set<string>();
-  for (const line of lines) {
+  for (const [index, line] of lines.entries()) {
     const productId = await productIdFor(line);
     const row = {
       product_name: line.name.trim(),
@@ -721,6 +724,8 @@ export async function updateInvoiceLines(invoiceId: string, lines: InvoiceLineIn
       content_amount: line.contentAmount,
       content_unit: line.contentUnit,
       printed_line_total: line.printedLineTotal,
+      // The order shown on the page, which is the paper order (lines can be moved with ↑ ↓).
+      line_position: index + 1,
     };
     const prev = line.id ? old.get(line.id) : undefined;
     if (prev) {
@@ -734,6 +739,7 @@ export async function updateInvoiceLines(invoiceId: string, lines: InvoiceLineIn
         prev.unit !== row.unit ||
         Number(prev.unit_price) !== row.unit_price ||
         (prev.printed_line_total === null ? null : Number(prev.printed_line_total)) !== row.printed_line_total ||
+        prev.line_position !== row.line_position ||
         prev.product_id !== productId;
       if (!changed) continue;
       if (prev.product_id && prev.product_id !== productId) touchedProducts.add(prev.product_id);

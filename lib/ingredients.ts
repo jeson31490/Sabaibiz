@@ -159,7 +159,8 @@ export async function confirmUnitSize(productId: string, lineIds: string[], amou
     .in("id", lineIds);
   if (error) throw new Error("We couldn't save this size. Please try again.");
   // Recipes use this unit for the product.
-  await supabase.from("products").update({ base_unit: unit }).eq("id", productId);
+  const { error: unitError } = await supabase.from("products").update({ base_unit: unit }).eq("id", productId);
+  if (unitError) throw new Error("The size was saved, but we couldn't update the product's unit. Please try again.");
 }
 
 /** The owner checked the paper invoice: the price or the line is right after all. */
@@ -197,7 +198,8 @@ export async function addManualPrice(productId: string, price: number, basis: Pr
   if (!(amount > 0)) throw new Error("Please enter how many pieces are in the pack.");
   const { error } = await supabase.from("manual_prices").insert({ product_id: productId, price, amount, unit, price_date: date });
   if (error) throw new Error("We couldn't save this price. Please try again.");
-  await supabase.from("products").update({ base_unit: unit }).eq("id", productId).is("base_unit", null);
+  const { error: unitError } = await supabase.from("products").update({ base_unit: unit }).eq("id", productId).is("base_unit", null);
+  if (unitError) throw new Error("The price was saved, but we couldn't update the product's unit. Please try again.");
 }
 
 /** "Add ingredient": a product never scanned (market, or a drink only resold), with its price. */
@@ -244,5 +246,48 @@ export async function renameProduct(productId: string, name: string): Promise<vo
   if (error) {
     if (error.code === "23505") throw new Error(`You already have a product called "${clean}". Use “Same as…” to merge them.`);
     throw new Error("We couldn't rename this product. Please try again.");
+  }
+}
+
+/** Everything the "Save & mark as reviewed" button saves for one product. Unchanged parts are left out. */
+export type ProductChanges = {
+  name?: string;
+  category?: ProductCategory;
+  sizes?: { unit: string; lineIds: string[]; amount: number; contentUnit: ContentUnit }[];
+  manualPrice?: { price: number; basis: PriceBasis };
+  /** Lines whose "suspect price" or "Check line" alert the owner has now reviewed. */
+  reviewedLineIds?: string[];
+};
+
+/**
+ * Saves a product's changes in one go and marks its alerts as reviewed. Steps run in order; if one
+ * fails, the error says which one, and that the steps before it were saved.
+ */
+export async function saveProductChanges(productId: string, changes: ProductChanges): Promise<void> {
+  const done: string[] = [];
+  async function step(label: string, run: () => Promise<void>) {
+    try {
+      await run();
+      done.push(label);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : "Something went wrong.";
+      const saved = done.length > 0 ? ` Already saved: ${done.join(", ")}.` : " Nothing was saved.";
+      throw new Error(`${label}: ${reason}${saved}`);
+    }
+  }
+
+  if (changes.name !== undefined) await step("name", () => renameProduct(productId, changes.name!));
+  if (changes.category !== undefined) await step("category", () => setProductCategory(productId, changes.category!));
+  for (const s of changes.sizes ?? []) {
+    await step(`size of “${s.unit}”`, () => confirmUnitSize(productId, s.lineIds, s.amount, s.contentUnit));
+  }
+  if (changes.manualPrice) {
+    await step("market price", () => addManualPrice(productId, changes.manualPrice!.price, changes.manualPrice!.basis));
+  }
+  if (changes.reviewedLineIds && changes.reviewedLineIds.length > 0) {
+    await step("review", async () => {
+      const { error } = await supabase.from("invoice_items").update({ review_reason: null }).in("id", changes.reviewedLineIds!);
+      if (error) throw new Error("We couldn't clear the alert. Please try again.");
+    });
   }
 }
