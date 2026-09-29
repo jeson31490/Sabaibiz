@@ -6,6 +6,14 @@ const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 // Server-only: pos_connections, sales and sale_items are written with the secret key.
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+/** Client with the secret key: bypasses Row Level Security. Server routes only, after checking who is calling. */
+export function createAdminClient(): SupabaseClient | null {
+  if (!SERVICE_ROLE_KEY) return null;
+  return createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
 export function jsonError(message: string, status: number) {
   return Response.json({ error: message }, { status });
 }
@@ -40,8 +48,5 @@ export async function requireOwner(
   }
   if (businessId !== auth.user.id) return jsonError("Only the business owner can manage the POS connection.", 403);
 
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  return { ownerId: auth.user.id, admin };
+  return { ownerId: auth.user.id, admin: createAdminClient()! };
 }

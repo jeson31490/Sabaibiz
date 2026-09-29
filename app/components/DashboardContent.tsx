@@ -11,6 +11,7 @@ import {
   type InvoiceRow,
   type PriceAlertRow,
 } from "../../lib/invoices";
+import { fetchTodaySales, type TodaySales } from "../../lib/sales";
 import { useUser } from "../context/UserContext";
 import PriceAlertsCard from "./PriceAlertsCard";
 
@@ -28,6 +29,25 @@ type State =
 const fmtBaht = (n: number) => `${n.toLocaleString("en-US", { maximumFractionDigits: 2 })} ฿`;
 const fmtDate = (iso: string) =>
   fromIsoDate(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const fmtTime = (iso: string) =>
+  new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit" });
+const lastWeekDay = () => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toLocaleDateString("en-GB", { timeZone: "Asia/Bangkok", weekday: "long" });
+
+/** Value and note of the "Today's Revenue" card. */
+function revenueCard(sales: TodaySales | "loading" | "error"): { value: string; note: string } {
+  if (sales === "loading") return { value: "…", note: "Loading" };
+  if (sales === "error") return { value: "—", note: "Sales are unavailable right now" };
+  if (!sales.connected) return { value: "—", note: "Connect Loyverse in Settings to see your sales" };
+  if (!sales.syncedUntil) return { value: "—", note: "Not synced yet today. Use “Sync sales now” in Settings." };
+
+  const tickets = `${sales.tickets} ticket${sales.tickets === 1 ? "" : "s"}`;
+  let comparison = `no sales last ${lastWeekDay()}`;
+  if (sales.lastWeekRevenue > 0) {
+    const pct = Math.round(((sales.revenue - sales.lastWeekRevenue) / sales.lastWeekRevenue) * 100);
+    comparison = `${pct >= 0 ? "+" : ""}${pct}% vs last ${lastWeekDay()}`;
+  }
+  return { value: fmtBaht(sales.revenue), note: `${tickets} · ${comparison} · until ${fmtTime(sales.syncedUntil)}` };
+}
 
 function IconCheck({ className }: { className?: string }) {
   return (
@@ -90,6 +110,18 @@ function StatusBadge({ status }: { status: InvoiceRow["status"] }) {
 export default function DashboardContent() {
   const { user } = useUser();
   const [state, setState] = useState<State>({ status: "loading" });
+  // Loaded on its own, so a Loyverse problem never hides the invoices.
+  const [sales, setSales] = useState<TodaySales | "loading" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchTodaySales()
+      .then((s) => !cancelled && setSales(s))
+      .catch(() => !cancelled && setSales("error"));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,7 +147,7 @@ export default function DashboardContent() {
 
   const ready = state.status === "ready" ? state : null;
   const kpis = [
-    { label: "Today's Revenue", value: "—", note: "No data yet" },
+    { label: "Today's Revenue", ...revenueCard(sales) },
     {
       label: "Costs scanned today",
       value: ready ? fmtBaht(ready.today.total) : "…",
