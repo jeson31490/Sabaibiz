@@ -15,6 +15,7 @@ import {
   type PriceAlertRow,
 } from "../../lib/invoices";
 import { isPeriodId, PERIODS, resolvePeriod, type PeriodId, type ResolvedPeriod } from "../../lib/periods";
+import { countIngredientsNeedingReview } from "../../lib/ingredients";
 import { fetchPeriodSales, type PeriodSales } from "../../lib/sales";
 import { useUser } from "../context/UserContext";
 import { inputClass, labelClass } from "./FormField";
@@ -171,6 +172,18 @@ export default function DashboardContent() {
     };
   }, [period]);
 
+  // "5 products need review" (Ingredients): shown only when there are some.
+  const [toReview, setToReview] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    countIngredientsNeedingReview()
+      .then((n) => !cancelled && setToReview(n))
+      .catch(() => {}); // a convenience: the dashboard works without it
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const sales: Loadable<PeriodSales> = figures?.key === periodKey ? figures.sales : "loading";
   const costs: Loadable<Costs> = figures?.key === periodKey ? figures.costs : "loading";
 
@@ -286,6 +299,18 @@ export default function DashboardContent() {
           <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">
             We couldn&apos;t load your data: {state.message}
           </p>
+        )}
+
+        {toReview > 0 && (
+          <Link
+            href="/dashboard/ingredients"
+            className="flex items-center justify-between gap-3 rounded-xl border border-gold-500/40 bg-gold-50 px-5 py-3 text-sm font-medium text-gold-800 transition hover:bg-gold-100"
+          >
+            <span>
+              {toReview} product{toReview === 1 ? " needs" : "s need"} review before they can be used in your recipes.
+            </span>
+            <span className="font-semibold">Review →</span>
+          </Link>
         )}
 
         {/* KPI cards */}

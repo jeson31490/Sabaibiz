@@ -45,6 +45,15 @@ function IconChart({ className }: IconProps) {
   );
 }
 
+function IconBasket({ className }: IconProps) {
+  return (
+    <svg {...svgProps} className={className}>
+      <path d="M3 9h18l-2 11H5L3 9Z" />
+      <path d="m8 9 4-6 4 6M9 13v4M15 13v4" />
+    </svg>
+  );
+}
+
 function IconGear({ className }: IconProps) {
   return (
     <svg {...svgProps} className={className}>
@@ -62,6 +71,7 @@ const NAV_ITEMS: {
 }[] = [
   { label: "Dashboard", href: "/dashboard", icon: IconHome, exact: true },
   { label: "Invoices", href: "/dashboard/invoices", icon: IconDocument },
+  { label: "Ingredients", href: "/dashboard/ingredients", icon: IconBasket },
   { label: "Price Analysis", href: "/dashboard/price-analysis", icon: IconChart },
   { label: "Settings", href: "/dashboard/settings", icon: IconGear },
 ];

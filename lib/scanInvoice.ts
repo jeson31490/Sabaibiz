@@ -122,3 +122,34 @@ export const CATEGORY_LABELS: Record<ProductCategory, string> = {
   equipment: "Kitchen equipment",
   cleaning: "Cleaning & other",
 };
+
+/** Over this gap (฿) between quantity × unit price and the printed line total, the line needs checking. */
+export const LINE_TOLERANCE = 1;
+
+export type LineCheck = {
+  /** What the line comes to: the printed total when there is one, else quantity × unit price. */
+  total: number;
+  /** The printed total is higher than quantity × unit price: "Check line". */
+  mismatch: boolean;
+  /** The printed total is lower: a line discount. */
+  discount: boolean;
+  /** Unit price after the discount (printed total ÷ quantity); the unit price otherwise. */
+  effectiveUnitPrice: number;
+};
+
+/** Checks one invoice line against its printed total. Old lines have no printed total. */
+export function checkLine(quantity: number, unitPrice: number, printedLineTotal: number | null | undefined): LineCheck {
+  const computed = Math.round(quantity * unitPrice * 100) / 100;
+  if (printedLineTotal === null || printedLineTotal === undefined || !Number.isFinite(printedLineTotal)) {
+    return { total: computed, mismatch: false, discount: false, effectiveUnitPrice: unitPrice };
+  }
+  // Only a total HIGHER than quantity × unit price is suspicious; a lower one is a normal line discount.
+  const mismatch = printedLineTotal > computed + LINE_TOLERANCE;
+  const discount = printedLineTotal < computed - LINE_TOLERANCE;
+  return {
+    total: printedLineTotal,
+    mismatch,
+    discount,
+    effectiveUnitPrice: discount && quantity > 0 ? printedLineTotal / quantity : unitPrice,
+  };
+}

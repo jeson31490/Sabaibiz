@@ -16,7 +16,8 @@ import {
   saveInvoice,
   SimilarInvoiceError,
 } from "../../../../lib/invoices";
-import { CATEGORY_LABELS, MAX_INVOICE_PAGES } from "../../../../lib/scanInvoice";
+import { CATEGORY_LABELS, checkLine, MAX_INVOICE_PAGES } from "../../../../lib/scanInvoice";
+import LineTotal from "../../../components/LineTotal";
 import { supabase } from "../../../../lib/supabase";
 import type { ScanResult } from "../../../api/scan-invoice/route";
 
@@ -380,9 +381,11 @@ export default function ScanInvoicePage() {
           total: total!,
           items: products.map((p) => ({
             name: p.name,
+            originalName: p.original_name,
             quantity: p.quantity,
             unit: p.unit,
             unitPrice: p.unit_price,
+            printedLineTotal: p.line_total,
             content_amount: p.content_amount,
             content_unit: p.content_unit,
             content_source: p.content_source,
@@ -663,21 +666,31 @@ export default function ScanInvoicePage() {
                             <th className="py-2 pr-2">Product</th>
                             <th className="py-2 pr-2 text-right">Qty</th>
                             <th className="py-2 pr-2">Unit</th>
-                            <th className="py-2 text-right">Unit price</th>
+                            <th className="py-2 pr-2 text-right">Unit price</th>
+                            <th className="py-2 text-right">Line total</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-teal-100">
-                          {products.map((p, i) => (
-                            <tr key={i}>
+                          {products.map((p, i) => {
+                            const check = checkLine(p.quantity, p.unit_price, p.line_total);
+                            return (
+                            <tr key={i} className={check.mismatch ? "bg-gold-50/70" : undefined}>
                               <td className="py-2.5 pr-2 font-medium text-teal-950">
                                 {p.name}
+                                {p.original_name && p.original_name !== p.name && (
+                                  <span className="block text-xs font-normal italic text-teal-900/50">Printed: {p.original_name}</span>
+                                )}
                                 <span className="block text-xs font-normal text-teal-900/55">{p.category ? CATEGORY_LABELS[p.category] : "Category unknown: needs review"} · {sizeLabel(p)}</span>
                               </td>
                               <td className="py-2.5 pr-2 text-right tabular-nums text-teal-900/75">{fmt(p.quantity)}</td>
                               <td className="py-2.5 pr-2 text-teal-900/75">{p.unit}</td>
-                              <td className="py-2.5 text-right tabular-nums text-teal-950">{fmt(p.unit_price)} ฿</td>
+                              <td className="py-2.5 pr-2 text-right tabular-nums text-teal-950">{fmt(p.unit_price)} ฿</td>
+                              <td className="py-2.5 text-right">
+                                <LineTotal check={check} quantity={p.quantity} unitPrice={p.unit_price} flagged />
+                              </td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>

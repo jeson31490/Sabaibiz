@@ -53,10 +53,18 @@ const ScannedInvoiceSchema = z.object({
     .describe("Final amount payable as printed on the invoice's total line, in Thai baht, after VAT and discounts"),
   products: z.array(
     z.object({
-      name: z.string(),
+      name: z.string().describe("Short English name"),
+      original_name: z
+        .string()
+        .nullable()
+        .describe("The product name exactly as printed on the invoice, in its original language (often Thai)"),
       quantity: z.number(),
       unit: z.string().describe("Unit of measure, e.g. kg, g, L, ml, pcs, box, pack, bottle"),
-      unit_price: z.number().describe("Price for one unit, in Thai baht"),
+      unit_price: z.number().describe("Price for one unit, in Thai baht, as printed"),
+      line_total: z
+        .number()
+        .nullable()
+        .describe("The total printed for this line (after any discount on the line), in baht; null if none is printed"),
       content_amount: z
         .number()
         .nullable()
@@ -93,10 +101,10 @@ const PROMPT = `These are the pages of one supplier invoice or receipt from a re
 - invoice_total: the final amount payable, copied exactly from the invoice's total line, not calculated by you. It is usually the last total printed, after VAT, service charge and discounts, and labelled for example "จำนวนเงินรวมทั้งสิ้น", "ยอดสุทธิ", "รวมเงิน", "TOTAL", "Grand total" or "Net amount". When several totals are printed (e.g. รวมเงิน before VAT, then จำนวนเงินรวมทั้งสิ้น after VAT), use the final one. On a multi-page invoice it is usually on the last page.
   Supermarket and wholesale receipts (Makro, Lotus's, Big C, CP Freshmart) often print a TOTAL first and then promotion or member discounts as minus lines; the amount payable is the one after those discounts, often labelled "ยอดสุทธิ", "ยอดชำระ", "NET", "NET TOTAL" or "Amount due". Never use the cash handed over ("เงินสด", "รับเงิน", "CASH"), the change ("เงินทอน", "CHANGE"), the amount before VAT ("มูลค่าสินค้า", "VATABLE"), the VAT line or an item count.
 - invoice_total_label: the label printed next to the amount you used for invoice_total, exactly as printed.
-- products: every purchased line item, with its name, quantity, unit and unit price in baht.
+- products: every purchased line item, with its name, quantity, unit and unit price in baht, and line_total: the amount printed for the whole line (often in the last column, after any discount on that line, e.g. Makro promotions). Copy the printed numbers; never compute line_total yourself. Use null when no line total is printed.
 - For each product, content_amount + content_unit: what ONE purchase unit contains, in grams (g), millilitres (ml) or pieces (pcs), so a price per gram, ml or piece can be worked out. Examples: "Ketchup 400ml", unit bottle → 400 ml; "cream cheese 250g", unit piece → 250 g; "Condensed milk 325ml x24 cans", unit carton → 7800 ml (24 × 325); "Eggs 30 pcs", unit tray → 30 pcs; "gloves 1x100", unit box → 100 pcs. Set content_source to "printed" when the size is written on the invoice. When nothing is written (1 lettuce, 1 bunch of basil, 1 tray), give your best estimate of a typical size in Thailand (e.g. 1 lettuce ≈ 300 g) with content_source "estimated". When the unit is itself a weight or volume (kg, g, L, ml), you may leave all three null. When you cannot tell at all, use null for all three.
 
-Write product names in English; if a name is printed only in Thai, translate it and keep it short (e.g. "Chicken breast"). If a line shows only a line total, divide it by the quantity to get the unit price. Leave out discounts, VAT, service charge, deposits and subtotal lines. Use null for any header field or total you cannot read.
+Write product names in English; if a name is printed only in Thai, translate it carefully and keep it short (e.g. "Chicken breast"). Keep sizes and pack counts as printed, and never invent a size or a product type that is not printed. Also copy the name exactly as printed, in its original language, into original_name. If a line shows only a line total, divide it by the quantity to get the unit price. Leave out discounts, VAT, service charge, deposits and subtotal lines. Use null for any header field or total you cannot read.
 
 If the invoice spans several pages, return one combined list of products covering every page. Header details (supplier, date, number) usually appear on the first page and may be repeated on later ones. Don't count a line twice when it is repeated, such as a header reprinted on each page, a "carried forward" subtotal, or the same page photographed twice.`;
 

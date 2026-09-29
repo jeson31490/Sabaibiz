@@ -1,4 +1,4 @@
-import { shortSupplierName, type ContentUnit, type ProductCategory, type PurchaseContent } from "./scanInvoice";
+import { checkLine, shortSupplierName, type ContentUnit, type ProductCategory, type PurchaseContent } from "./scanInvoice";
 import { supabase } from "./supabase";
 
 export type InvoiceStatus = "processed" | "pending" | "error";
@@ -134,6 +134,7 @@ type RawPurchase = {
   unit: string;
   quantity: number | string;
   unit_price: number | string;
+  printed_line_total: number | string | null;
   invoices: Related<{ invoice_date: string; suppliers: Related<{ name: string }> }>;
 };
 
@@ -157,7 +158,7 @@ export async function fetchPurchaseHistory(): Promise<PurchaseRow[]> {
   for (let from = 0; ; from += PAGE_SIZE) {
     const { data, error } = await supabase
       .from("invoice_items")
-      .select("product_name, unit, quantity, unit_price, invoices!inner(invoice_date, suppliers(name))")
+      .select("product_name, unit, quantity, unit_price, printed_line_total, invoices!inner(invoice_date, suppliers(name))")
       .neq("invoices.status", "error")
       .order("id") // stable order so pages don't overlap
       .range(from, from + PAGE_SIZE - 1);
@@ -174,7 +175,12 @@ export async function fetchPurchaseHistory(): Promise<PurchaseRow[]> {
         product: r.product_name,
         unit: r.unit,
         quantity: Number(r.quantity),
-        unitPrice: Number(r.unit_price),
+        // After a line discount, the real price paid per unit (printed line total ÷ quantity).
+        unitPrice: checkLine(
+          Number(r.quantity),
+          Number(r.unit_price),
+          r.printed_line_total === null ? null : Number(r.printed_line_total),
+        ).effectiveUnitPrice,
         date: invoice.invoice_date,
         supplier: relatedName(invoice.suppliers),
       },
@@ -213,7 +219,17 @@ export type NewInvoice = {
   /** Final amount payable as printed on the invoice, including VAT and discounts. */
   total: number;
   /** content_*: what one purchase unit contains (see purchaseContent in lib/scanInvoice.ts). */
-  items: ({ name: string; quantity: number; unit: string; unitPrice: number; category?: ProductCategory | null } &
+  items: ({
+    name: string;
+    /** As printed on the invoice (often Thai), to spot a wrong translation. */
+    originalName?: string | null;
+    quantity: number;
+    unit: string;
+    unitPrice: number;
+    category?: ProductCategory | null;
+    /** The total printed for the line (after a line discount), when there is one. */
+    printedLineTotal?: number | null;
+  } &
     Partial<PurchaseContent>)[];
   /** The Claude reading it came from (invoice_scans), to know what it cost. */
   scanId?: string | null;
@@ -466,6 +482,10 @@ export async function saveInvoice(
         invoice_id: saved.id,
         user_id: userId,
         product_name: i.name,
+        original_name: i.originalName?.trim() || null,
+        printed_line_total: i.printedLineTotal ?? null,
+        // "Check line" until the owner corrects or confirms it (Ingredients → Needs review).
+        review_reason: checkLine(i.quantity, i.unitPrice, i.printedLineTotal).mismatch ? "line_mismatch" : null,
         quantity: i.quantity,
         unit: i.unit,
         unit_price: i.unitPrice,
@@ -531,7 +551,27 @@ export type InvoiceDetail = {
   scannedOn: string;
   total: number;
   status: InvoiceStatus;
-  items: { name: string; quantity: number; unit: string; unitPrice: number }[];
+  items: InvoiceLine[];
+};
+
+export type InvoiceLine = {
+  id: string;
+  name: string;
+  /** As printed (often Thai); null for invoices scanned before it was kept. */
+  originalName: string | null;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  contentAmount: number | null;
+  contentUnit: ContentUnit | null;
+  contentSource: PurchaseContent["content_source"];
+  /** The product of the catalogue this line is linked to. */
+  productName: string | null;
+  suspectPrice: boolean;
+  /** Printed line total, when read (not on invoices scanned before it was). */
+  printedLineTotal: number | null;
+  /** "Check line": flagged until corrected or confirmed. */
+  lineFlagged: boolean;
 };
 
 type RawInvoiceDetail = {
@@ -543,7 +583,22 @@ type RawInvoiceDetail = {
   total: number | string;
   status: InvoiceStatus;
   suppliers: Related<{ name: string }>;
-  invoice_items: { product_name: string; quantity: number | string; unit: string; unit_price: number | string }[] | null;
+  invoice_items:
+    | {
+        id: string;
+        product_name: string;
+        original_name: string | null;
+        quantity: number | string;
+        unit: string;
+        unit_price: number | string;
+        content_amount: number | string | null;
+        content_unit: ContentUnit | null;
+        content_source: PurchaseContent["content_source"];
+        review_reason: string | null;
+        printed_line_total: number | string | null;
+        products: Related<{ name: string }>;
+      }[]
+    | null;
 };
 
 /** One invoice with its lines, or null if it doesn't exist (or belongs to another business). */
@@ -551,9 +606,11 @@ export async function fetchInvoice(id: string): Promise<InvoiceDetail | null> {
   const { data, error } = await supabase
     .from("invoices")
     .select(
-      "id, invoice_number, is_generated_number, invoice_date, created_at, total, status, suppliers(name), invoice_items(product_name, quantity, unit, unit_price)",
+      "id, invoice_number, is_generated_number, invoice_date, created_at, total, status, suppliers(name), " +
+        "invoice_items(id, product_name, original_name, quantity, unit, unit_price, content_amount, content_unit, content_source, review_reason, printed_line_total, products(name))",
     )
     .eq("id", id)
+    .order("id", { referencedTable: "invoice_items" })
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
@@ -567,13 +624,176 @@ export async function fetchInvoice(id: string): Promise<InvoiceDetail | null> {
     scannedOn: bangkokToday(new Date(r.created_at)),
     total: Number(r.total),
     status: r.status,
-    items: (r.invoice_items ?? []).map((i) => ({
-      name: i.product_name,
-      quantity: Number(i.quantity),
-      unit: i.unit,
-      unitPrice: Number(i.unit_price),
-    })),
+    items: (r.invoice_items ?? []).map((i) => {
+      const product = Array.isArray(i.products) ? i.products[0] : i.products;
+      return {
+        id: i.id,
+        name: i.product_name,
+        originalName: i.original_name,
+        quantity: Number(i.quantity),
+        unit: i.unit,
+        unitPrice: Number(i.unit_price),
+        contentAmount: i.content_amount === null ? null : Number(i.content_amount),
+        contentUnit: i.content_unit,
+        contentSource: i.content_source,
+        productName: product?.name ?? null,
+        suspectPrice: i.review_reason === "suspect_price",
+        printedLineTotal: i.printed_line_total === null ? null : Number(i.printed_line_total),
+        lineFlagged: i.review_reason === "line_mismatch",
+      };
+    }),
   };
+}
+
+/** A line as edited on the invoice page. No id = a new line. */
+export type InvoiceLineInput = {
+  id?: string;
+  name: string;
+  originalName: string | null;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  contentAmount: number | null;
+  contentUnit: ContentUnit | null;
+  /** The catalogue product to link it to: an existing name, or a new product with this name. */
+  productName: string;
+  /** The total printed for the line; null when there is none. */
+  printedLineTotal: number | null;
+};
+
+/**
+ * Replaces the lines of a saved invoice with the edited ones (update, add, remove) and saves the
+ * printed total. A line that was changed loses its "suspect price" alert. A product left with no
+ * invoice line, price or recipe afterwards is removed from the catalogue.
+ */
+export async function updateInvoiceLines(invoiceId: string, lines: InvoiceLineInput[], printedTotal: number): Promise<void> {
+  if (lines.length === 0) throw new Error("Please keep at least one line.");
+  for (const l of lines) {
+    if (!l.name.trim()) throw new Error("Please give every line a name.");
+    if (!(l.quantity > 0)) throw new Error(`Please enter a quantity above 0 for ${l.name}.`);
+    if (!(l.unitPrice >= 0)) throw new Error(`Please enter a price for ${l.name}.`);
+    if (!l.unit.trim()) throw new Error(`Please enter a unit for ${l.name}.`);
+    if ((l.contentAmount === null) !== (l.contentUnit === null) || (l.contentAmount !== null && !(l.contentAmount > 0))) {
+      throw new Error(`Please complete the size of ${l.name}, or leave it empty.`);
+    }
+  }
+  if (!(printedTotal >= 0)) throw new Error("Please enter the printed total.");
+  const userId = await currentBusinessId();
+
+  const { data: before, error: beforeError } = await supabase
+    .from("invoice_items")
+    .select("id, product_name, original_name, quantity, unit, unit_price, content_amount, content_unit, product_id, printed_line_total")
+    .eq("invoice_id", invoiceId);
+  if (beforeError) throw beforeError;
+  type Before = { id: string; product_name: string; original_name: string | null; quantity: number | string; unit: string; unit_price: number | string; content_amount: number | string | null; content_unit: ContentUnit | null; product_id: string | null; printed_line_total: number | string | null };
+  const old = new Map(((before ?? []) as Before[]).map((b) => [b.id, b]));
+
+  // Products: link to the one with this name, or create it (taking the category of the product it replaces).
+  const { data: products, error: productsError } = await supabase.from("products").select("id, name, category").eq("user_id", userId);
+  if (productsError) throw productsError;
+  const byKey = new Map(((products ?? []) as { id: string; name: string; category: ProductCategory | null }[]).map((p) => [productKey(p.name), p]));
+  const categoryOf = new Map(((products ?? []) as { id: string; category: ProductCategory | null }[]).map((p) => [p.id, p.category]));
+  async function productIdFor(line: InvoiceLineInput): Promise<string> {
+    const name = (line.productName.trim() || line.name).trim().replace(/\s+/g, " ");
+    const found = byKey.get(productKey(name));
+    if (found) return found.id;
+    const previous = line.id ? old.get(line.id)?.product_id : null;
+    const { data, error } = await supabase
+      .from("products")
+      .insert({ user_id: userId, name, base_unit: line.contentUnit, category: previous ? (categoryOf.get(previous) ?? null) : null })
+      .select("id, name, category")
+      .single();
+    if (error) throw error;
+    byKey.set(productKey(name), data as { id: string; name: string; category: ProductCategory | null });
+    return data.id;
+  }
+
+  const touchedProducts = new Set<string>();
+  for (const line of lines) {
+    const productId = await productIdFor(line);
+    const row = {
+      product_name: line.name.trim(),
+      original_name: line.originalName?.trim() || null,
+      quantity: line.quantity,
+      unit: line.unit.trim(),
+      unit_price: line.unitPrice,
+      product_id: productId,
+      content_amount: line.contentAmount,
+      content_unit: line.contentUnit,
+      printed_line_total: line.printedLineTotal,
+    };
+    const prev = line.id ? old.get(line.id) : undefined;
+    if (prev) {
+      const prevAmount = prev.content_amount === null ? null : Number(prev.content_amount);
+      const sizeChanged = prevAmount !== line.contentAmount || prev.content_unit !== line.contentUnit;
+      const changed =
+        sizeChanged ||
+        prev.product_name !== row.product_name ||
+        (prev.original_name ?? null) !== row.original_name ||
+        Number(prev.quantity) !== row.quantity ||
+        prev.unit !== row.unit ||
+        Number(prev.unit_price) !== row.unit_price ||
+        (prev.printed_line_total === null ? null : Number(prev.printed_line_total)) !== row.printed_line_total ||
+        prev.product_id !== productId;
+      if (!changed) continue;
+      if (prev.product_id && prev.product_id !== productId) touchedProducts.add(prev.product_id);
+      const { error } = await supabase
+        .from("invoice_items")
+        .update({
+          ...row,
+          // Corrected by the owner: its alert goes (a line still off stays "Check line"), and a
+          // size they typed is confirmed.
+          review_reason: checkLine(line.quantity, line.unitPrice, line.printedLineTotal).mismatch ? "line_mismatch" : null,
+          ...(sizeChanged ? { content_source: line.contentAmount === null ? null : "confirmed" } : {}),
+        })
+        .eq("id", prev.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from("invoice_items").insert({
+        ...row,
+        invoice_id: invoiceId,
+        user_id: userId,
+        content_source: line.contentAmount === null ? null : "confirmed",
+        review_reason: checkLine(line.quantity, line.unitPrice, line.printedLineTotal).mismatch ? "line_mismatch" : null,
+      });
+      if (error) throw error;
+    }
+  }
+
+  const kept = new Set(lines.map((l) => l.id).filter(Boolean));
+  const removed = [...old.values()].filter((b) => !kept.has(b.id));
+  if (removed.length > 0) {
+    const { error } = await supabase.from("invoice_items").delete().in("id", removed.map((b) => b.id));
+    if (error) throw error;
+    for (const b of removed) if (b.product_id) touchedProducts.add(b.product_id);
+  }
+
+  const { error: totalError } = await supabase.from("invoices").update({ total: Math.round(printedTotal * 100) / 100 }).eq("id", invoiceId);
+  if (totalError) throw totalError;
+
+  await removeUnusedProducts([...touchedProducts]);
+}
+
+/** Deletes products that nothing refers to any more (no invoice line, manual price or recipe ingredient). */
+async function removeUnusedProducts(ids: string[]): Promise<void> {
+  for (const id of ids) {
+    const [lines, prices, ingredients] = await Promise.all([
+      supabase.from("invoice_items").select("id", { count: "exact", head: true }).eq("product_id", id),
+      supabase.from("manual_prices").select("id", { count: "exact", head: true }).eq("product_id", id),
+      supabase.from("recipe_ingredients").select("id", { count: "exact", head: true }).eq("product_id", id),
+    ]);
+    if (lines.error || prices.error || ingredients.error) continue; // keeping a product is harmless
+    if ((lines.count ?? 0) + (prices.count ?? 0) + (ingredients.count ?? 0) === 0) {
+      await supabase.from("products").delete().eq("id", id);
+    }
+  }
+}
+
+/** Names of the business's products, A→Z, to link an invoice line to one. */
+export async function fetchProductNames(): Promise<string[]> {
+  const { data, error } = await supabase.from("products").select("name").order("name");
+  if (error) throw error;
+  return (data ?? []).map((p) => p.name as string);
 }
 
 /**
