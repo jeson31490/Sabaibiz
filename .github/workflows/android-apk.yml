@@ -20,9 +20,10 @@ jobs:
       run:
         working-directory: mobile
     env:
-      # Public values, inlined into the app when it is bundled. The key is a repository secret.
+      # Public values, inlined into the app when it is bundled. The publishable key is public by design
+      # (data is protected by Row Level Security). A repository secret with the same name takes priority.
       EXPO_PUBLIC_SUPABASE_URL: https://ppbfvmpndewaazeosyjs.supabase.co
-      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_gy7qMoUXEIJ2n2L9Ap5b2A_I0DWhPz2' }}
       EXPO_PUBLIC_API_URL: https://www.sabaibiz.com
       EXPO_NO_TELEMETRY: "1"
     steps:
