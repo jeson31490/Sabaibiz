@@ -16,7 +16,10 @@ import { supabase } from "../../../lib/supabase";
 // Reading a long invoice can take a while.
 export const maxDuration = 60;
 
-const MODEL = "claude-sonnet-4-6";
+const DEFAULT_MODEL = "claude-sonnet-4-6";
+// Models the model-test page (Settings) may ask for, to compare quality and cost. The scan page never
+// sends one, so real scans keep using DEFAULT_MODEL. All of these cost the same or less than the default.
+const TEST_MODELS: readonly string[] = [DEFAULT_MODEL, "claude-sonnet-5-5", "claude-haiku-5-5"];
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 const PDF_TYPE = "application/pdf";
 // Claude accepts images up to 5MB; the scan page shrinks photos well below that.
@@ -134,8 +137,9 @@ function toContentBlock(page: PageInput): { block: Anthropic.ContentBlockParam; 
 
 const client = new Anthropic();
 
-function jsonError(message: string, status: number) {
-  return Response.json({ error: message }, { status });
+// `detail` (the API's own message) is only sent when a test model was asked for, to see why it refused.
+function jsonError(message: string, status: number, detail?: string) {
+  return Response.json(detail ? { error: message, detail } : { error: message }, { status });
 }
 
 /**
@@ -144,7 +148,7 @@ function jsonError(message: string, status: number) {
  */
 async function recordScan(
   userToken: string,
-  scan: { pages: number; inputTokens: number; outputTokens: number; succeeded: boolean },
+  scan: { model: string; pages: number; inputTokens: number; outputTokens: number; succeeded: boolean },
 ): Promise<string | null> {
   const asUser = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     global: { headers: { Authorization: `Bearer ${userToken}` } },
@@ -153,7 +157,7 @@ async function recordScan(
   const { data, error } = await asUser
     .from("invoice_scans")
     .insert({
-      model: MODEL,
+      model: scan.model,
       pages: scan.pages,
       input_tokens: scan.inputTokens,
       output_tokens: scan.outputTokens,
@@ -175,12 +179,18 @@ export async function POST(request: Request) {
   const { data: auth, error: authError } = await supabase.auth.getUser(token);
   if (authError || !auth.user) return jsonError("Your session has expired. Please sign in again.", 401);
 
-  let body: { pages?: unknown };
+  let body: { pages?: unknown; model?: unknown };
   try {
     body = await request.json();
   } catch {
     return jsonError("The request body must be JSON.", 400);
   }
+
+  const testing = body.model !== undefined;
+  if (testing && (typeof body.model !== "string" || !TEST_MODELS.includes(body.model))) {
+    return jsonError("This model is not available.", 400);
+  }
+  const model = typeof body.model === "string" ? body.model : DEFAULT_MODEL;
 
   const pages = Array.isArray(body.pages) ? (body.pages as PageInput[]) : [];
   if (pages.length === 0) return jsonError("No invoice image was sent.", 400);
@@ -200,7 +210,7 @@ export async function POST(request: Request) {
 
   try {
     const response = await client.messages.parse({
-      model: MODEL,
+      model,
       max_tokens: 16000,
       messages: [{ role: "user", content }],
       output_config: { format: zodOutputFormat(ScannedInvoiceSchema) },
@@ -223,6 +233,7 @@ export async function POST(request: Request) {
     const succeeded = response.stop_reason !== "refusal" && !!invoice;
     // Paid for either way, so recorded either way.
     const scanId = await recordScan(token, {
+      model,
       pages: pages.length,
       inputTokens: response.usage.input_tokens,
       outputTokens: response.usage.output_tokens,
@@ -254,7 +265,7 @@ export async function POST(request: Request) {
     }
     if (error instanceof Anthropic.BadRequestError) {
       console.error("scan-invoice: bad request", error.message);
-      return jsonError("We couldn't read this file. Please try another photo.", 400);
+      return jsonError("We couldn't read this file. Please try another photo.", 400, testing ? error.message : undefined);
     }
     if (error instanceof Anthropic.AuthenticationError) {
       console.error("scan-invoice: invalid ANTHROPIC_API_KEY");
@@ -262,7 +273,7 @@ export async function POST(request: Request) {
     }
     if (error instanceof Anthropic.APIError) {
       console.error(`scan-invoice: API error ${error.status}`, error.message);
-      return jsonError("Invoice reading is temporarily unavailable. Please try again.", 502);
+      return jsonError("Invoice reading is temporarily unavailable. Please try again.", 502, testing ? error.message : undefined);
     }
     throw error;
   }
