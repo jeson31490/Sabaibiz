@@ -161,3 +161,17 @@ export async function joinPendingInvite(userId: string): Promise<boolean> {
   const joined = await acceptTeamInvite();
   return joined !== null;
 }
+
+/**
+ * Asks the server to link this person to the business that invited their e-mail (see app/api/team/sync).
+ * Null when there is no invitation for them.
+ */
+export async function syncMembership(): Promise<{ role: TeamRole; canScan: boolean } | null> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return null;
+  const res = await fetch("/api/team/sync", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) return null;
+  const body = (await res.json().catch(() => null)) as { membership: { role: TeamRole; canScan: boolean } | null } | null;
+  return body?.membership ?? null;
+}
