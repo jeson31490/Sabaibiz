@@ -6,6 +6,7 @@ import { getInitials, useUser, type UserRole } from "../context/UserContext";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactElement } from "react";
 import { supabase } from "../../lib/supabase";
+import { useNotifications } from "../../lib/useNotifications";
 
 type IconProps = { className?: string };
 
@@ -82,6 +83,7 @@ type NavItem = {
 
 const ITEM = {
   dashboard: { label: "Dashboard", href: "/dashboard", icon: IconHome, exact: true },
+  today: { label: "Today", href: "/dashboard", icon: IconHome, exact: true },
   myDay: { label: "My day", href: "/dashboard", icon: IconHome, exact: true },
   invoices: { label: "Invoices", href: "/dashboard/invoices", icon: IconDocument },
   ingredients: { label: "Ingredients", href: "/dashboard/ingredients", icon: IconBasket },
@@ -90,17 +92,21 @@ const ITEM = {
   settings: { label: "Settings", href: "/dashboard/settings", icon: IconGear },
 } satisfies Record<string, NavItem>;
 
-// Owner and managers run the business; an employee gets a short menu, and invoices only if allowed.
+// The owner sees everything. A manager has "Today" instead of the profit dashboard. An employee gets a
+// short menu, and invoices only if allowed.
 function navItemsFor(role: UserRole | null, canScan: boolean | null): NavItem[] {
   if (role === "employee") {
     return [ITEM.myDay, ...(canScan ? [ITEM.invoices] : []), ITEM.settings];
   }
-  return [ITEM.dashboard, ITEM.invoices, ITEM.ingredients, ITEM.prices, ITEM.team, ITEM.settings];
+  const home = role === "manager" ? ITEM.today : ITEM.dashboard;
+  return [home, ITEM.invoices, ITEM.ingredients, ITEM.prices, ITEM.team, ITEM.settings];
 }
 
 export default function DashboardNavbar() {
   const { user, role, canScan } = useUser();
   const navItems = navItemsFor(role, canScan);
+  // New absence declarations: only the owner and managers get them.
+  const { unread } = useNotifications(role === "owner" || role === "manager");
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -185,6 +191,14 @@ export default function DashboardNavbar() {
                 >
                   <Icon className="h-4 w-4" />
                   {label}
+                  {href === ITEM.team.href && unread > 0 && (
+                    <span
+                      aria-label={`${unread} new`}
+                      className="ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-gold-500 px-1.5 text-xs font-bold text-teal-950"
+                    >
+                      {unread}
+                    </span>
+                  )}
                 </Link>
               </li>
             );

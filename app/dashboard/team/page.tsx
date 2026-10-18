@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import DashboardNavbar from "../../components/DashboardNavbar";
 import { useUser } from "../../context/UserContext";
 import {
@@ -20,20 +20,20 @@ import {
   type Shift,
 } from "../../../lib/attendance";
 import { bangkokToday } from "../../../lib/invoices";
-import { supabase } from "../../../lib/supabase";
-import { fetchBusinessId, fetchVisibleTeam } from "../../../lib/team";
+import type { AppNotification } from "../../../lib/notifications";
+import { fetchTeamNames } from "../../../lib/teamNames";
+import { useLiveReload } from "../../../lib/useLiveReload";
+import { useNotifications } from "../../../lib/useNotifications";
 
-type Load =
-  | { status: "loading" }
-  | { status: "error"; message: string }
-  | {
-      status: "ready";
-      today: string;
-      shifts: Shift[];
-      absences: Absence[];
-      /** user id -> label */
-      names: Map<string, string>;
-    };
+type Overview = {
+  today: string;
+  shifts: Shift[];
+  absences: Absence[];
+  /** user id -> label */
+  names: Map<string, string>;
+};
+
+type Load = { status: "loading" } | { status: "error"; message: string } | ({ status: "ready" } & Overview);
 
 const card = "rounded-2xl border border-teal-100 bg-white shadow-card";
 const th = "px-6 py-3 text-xs font-semibold uppercase tracking-wide text-teal-900/55";
@@ -41,37 +41,37 @@ const th = "px-6 py-3 text-xs font-semibold uppercase tracking-wide text-teal-90
 const minutesOf = (s: Shift) => (s.clockOut ? Math.max(0, (Date.parse(s.clockOut) - Date.parse(s.clockIn)) / 60000) : 0);
 const fmtHours = (minutes: number) => `${Math.floor(minutes / 60)}h ${String(Math.round(minutes % 60)).padStart(2, "0")}m`;
 
-// Attendance and declared absences for the owner and managers. Employees are sent back to their own screen.
+async function loadOverview(): Promise<Overview> {
+  const today = bangkokToday();
+  const [shifts, absences, names] = await Promise.all([
+    fetchBusinessShifts(shiftDay(today, -6)),
+    fetchBusinessAbsences(shiftDay(today, -7)),
+    fetchTeamNames(),
+  ]);
+  return { today, shifts, absences, names };
+}
+
+// Attendance and declared absences for the owner and managers, kept live. Employees are sent back to
+// their own screen.
 export default function TeamPage() {
   const router = useRouter();
   const { role } = useUser();
   const [load, setLoad] = useState<Load>({ status: "loading" });
+  const enabled = role === "owner" || role === "manager";
+  const { items, markAllRead } = useNotifications(enabled);
 
   useEffect(() => {
     if (role === "employee") router.replace("/dashboard");
   }, [role, router]);
 
   useEffect(() => {
-    if (role === null || role === "employee") return;
+    if (!enabled) return;
     let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const me = data.session?.user;
-        if (!me) throw new Error("Please sign in again.");
-        const today = bangkokToday();
-        const [shifts, absences, team, businessId] = await Promise.all([
-          fetchBusinessShifts(shiftDay(today, -6)),
-          fetchBusinessAbsences(shiftDay(today, -7)),
-          fetchVisibleTeam(),
-          fetchBusinessId(),
-        ]);
-        const names = new Map<string, string>();
-        for (const m of team) if (m.memberUserId) names.set(m.memberUserId, m.email);
-        // The owner has no team row: they are the business id. Everyone else unknown was removed since.
-        if (!names.has(businessId)) names.set(businessId, businessId === me.id ? "You (owner)" : "Owner");
-        if (!cancelled) setLoad({ status: "ready", today, shifts, absences, names });
-      } catch (e) {
+    loadOverview()
+      .then((overview) => {
+        if (!cancelled) setLoad({ status: "ready", ...overview });
+      })
+      .catch((e) => {
         if (cancelled) return;
         setLoad({
           status: "error",
@@ -81,12 +81,20 @@ export default function TeamPage() {
               ? e.message
               : "Your team's attendance could not be loaded.",
         });
-      }
-    })();
+      });
     return () => {
       cancelled = true;
     };
-  }, [role]);
+  }, [enabled]);
+
+  // Someone clocks in or declares an absence: the screen updates by itself.
+  const refresh = useCallback(() => {
+    loadOverview()
+      .then((overview) => setLoad({ status: "ready", ...overview }))
+      // Keep what is on screen if a background refresh fails.
+      .catch(() => {});
+  }, []);
+  useLiveReload(["absences", "time_entries"], refresh, enabled);
 
   return (
     <div className="min-h-screen bg-teal-50/60 pb-16">
@@ -107,7 +115,7 @@ export default function TeamPage() {
           </p>
         )}
 
-        {load.status === "ready" && <TeamContent {...load} />}
+        {load.status === "ready" && <TeamContent {...load} notifications={items} onMarkAllRead={markAllRead} />}
       </main>
     </div>
   );
@@ -118,12 +126,9 @@ function TeamContent({
   shifts,
   absences,
   names,
-}: {
-  today: string;
-  shifts: Shift[];
-  absences: Absence[];
-  names: Map<string, string>;
-}) {
+  notifications,
+  onMarkAllRead,
+}: Overview & { notifications: AppNotification[]; onMarkAllRead: () => void }) {
   const nameOf = (id: string) => names.get(id) ?? "Former team member";
 
   const todayShifts = shifts.filter((s) => bangkokDayOf(s.clockIn) === today || !s.clockOut);
@@ -137,8 +142,35 @@ function TeamContent({
   const current = absences.filter((a) => a.endDate >= today);
   const recent = absences.filter((a) => a.endDate < today).reverse();
 
+  const unread = notifications.filter((n) => !n.readAt);
+
   return (
     <>
+      {unread.length > 0 && (
+        <section aria-label="New declarations" className="mt-8 rounded-2xl border border-gold-500/40 bg-gold-50 shadow-card">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-5">
+            <h2 className="text-lg font-semibold text-gold-800">New ({unread.length})</h2>
+            <button
+              type="button"
+              onClick={onMarkAllRead}
+              className="rounded-full border border-gold-500/50 px-4 py-1.5 text-xs font-semibold text-gold-800 transition hover:bg-gold-500/15"
+            >
+              Mark all as read
+            </button>
+          </div>
+          <ul className="mt-2 divide-y divide-gold-500/20">
+            {unread.map((n) => (
+              <li key={n.id} className="px-6 py-3 text-sm text-teal-950">
+                <span className="font-medium">{nameOf(n.absence.employeeId)}</span> declared{" "}
+                {n.absence.kind === "sick" ? "a sick day" : "an absence"}
+                <span className="text-teal-900/75"> · {fmtDayRange(n.absence)}</span>
+                {n.absence.note && <span className="mt-0.5 block text-xs text-teal-900/60">{n.absence.note}</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className={`mt-8 ${card} p-6`}>
         <h2 className="text-lg font-semibold text-teal-950">In right now</h2>
         {stillIn.length === 0 ? (

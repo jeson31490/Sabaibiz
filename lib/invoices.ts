@@ -56,6 +56,17 @@ const relatedName = (r: Related<{ name: string }>) => (Array.isArray(r) ? r[0]?.
 const INVOICE_SELECT =
   "id, invoice_number, is_generated_number, invoice_date, total, status, suppliers(name), invoice_items(count)";
 
+const toInvoiceRow = (r: RawInvoice): InvoiceRow => ({
+  id: r.id,
+  number: r.invoice_number,
+  generatedNumber: r.is_generated_number === true,
+  supplier: relatedName(r.suppliers),
+  date: r.invoice_date,
+  products: r.invoice_items?.[0]?.count ?? 0,
+  total: Number(r.total),
+  status: r.status,
+});
+
 // Row Level Security limits every query to the signed-in user's own rows.
 // orderBy "added" lists the most recently saved invoices first, whatever date is printed on them.
 export async function fetchInvoices(
@@ -70,16 +81,25 @@ export async function fetchInvoices(
   const { data, error } = await query;
   if (error) throw error;
 
-  return ((data ?? []) as unknown as RawInvoice[]).map((r) => ({
-    id: r.id,
-    number: r.invoice_number,
-    generatedNumber: r.is_generated_number === true,
-    supplier: relatedName(r.suppliers),
-    date: r.invoice_date,
-    products: r.invoice_items?.[0]?.count ?? 0,
-    total: Number(r.total),
-    status: r.status,
-  }));
+  return ((data ?? []) as unknown as RawInvoice[]).map(toInvoiceRow);
+}
+
+/**
+ * Invoices scanned today (by created_at, in Bangkok time), whatever date is printed on them, newest first.
+ * This is what a manager checks during the day.
+ */
+export async function fetchInvoicesScannedToday(): Promise<InvoiceRow[]> {
+  // Thailand has no daylight saving time, so a Bangkok day is always exactly 24 hours.
+  const start = new Date(`${bangkokToday()}T00:00:00+07:00`);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  const { data, error } = await supabase
+    .from("invoices")
+    .select(INVOICE_SELECT)
+    .gte("created_at", start.toISOString())
+    .lt("created_at", end.toISOString())
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as unknown as RawInvoice[]).map(toInvoiceRow);
 }
 
 /** Sum of the invoices whose invoice date (printed on it) is in the range, both ends included. */

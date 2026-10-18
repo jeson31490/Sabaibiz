@@ -137,6 +137,26 @@ export async function declareAbsence(input: {
   return toAbsence(data as RawAbsence);
 }
 
+/**
+ * Asks the server to e-mail the owner and managers about a declaration. Best effort: the in-app
+ * notification doesn't depend on it, so a failure here is ignored.
+ */
+export async function emailAbsenceNotice(absenceId: string): Promise<void> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    await fetch("/api/notify/absence", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${data.session?.access_token ?? ""}`,
+      },
+      body: JSON.stringify({ absenceId }),
+    });
+  } catch {
+    // Offline or no e-mail set up: managers still get the in-app notification.
+  }
+}
+
 /** Cancels a declaration that hasn't ended yet. */
 export async function cancelAbsence(id: string): Promise<void> {
   const { data, error } = await supabase.from("absences").delete().eq("id", id).select("id");

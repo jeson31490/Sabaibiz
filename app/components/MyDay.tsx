@@ -8,6 +8,7 @@ import {
   clockIn,
   clockOut,
   declareAbsence,
+  emailAbsenceNotice,
   fetchMyAbsences,
   fetchMyShifts,
   fetchOpenShift,
@@ -125,7 +126,9 @@ export default function MyDay() {
     setDeclareError(null);
     setNotice(null);
     try {
-      await declareAbsence({ kind, startDate, endDate, note: String(data.get("note") ?? "") });
+      const absence = await declareAbsence({ kind, startDate, endDate, note: String(data.get("note") ?? "") });
+      // Managers are notified in the app by the database; this adds the e-mail, without waiting for it.
+      void emailAbsenceNotice(absence.id);
       form.reset();
       setDeclaring(false);
       setNotice(kind === "sick" ? "Your sick day was declared. Get well soon." : "Your absence was declared.");
