@@ -24,6 +24,8 @@ type UserContextValue = {
   updateUser: (changes: Partial<UserProfile>) => void;
   /** Null while it is being looked up, and when signed out. */
   role: UserRole | null;
+  /** May scan and see invoices. True for owners and managers; the owner decides for each employee. Null while looking up. */
+  canScan: boolean | null;
   /** Looks the role up again, e.g. right after accepting a team invitation. */
   refreshRole: () => void;
 };
@@ -52,7 +54,7 @@ const UserContext = createContext<UserContextValue | null>(null);
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile>(DEFAULT_USER);
   const [userId, setUserId] = useState<string | null>(null);
-  const [role, setRole] = useState<{ userId: string; role: UserRole } | null>(null);
+  const [role, setRole] = useState<{ userId: string; role: UserRole; canScan: boolean } | null>(null);
   const [roleVersion, setRoleVersion] = useState(0);
 
   // Keep the profile (including the photo) in sync with the Supabase session on every page.
@@ -71,11 +73,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (!userId) return;
     let cancelled = false;
     fetchMyMembership(userId)
-      .then((m) => (m?.status === "active" ? m.role : "owner"))
+      .then((m) =>
+        m?.status === "active"
+          ? { role: m.role, canScan: m.role === "manager" || m.canScan }
+          : { role: "owner" as const, canScan: true },
+      )
       // No team_members table yet (migration not run) means there are no teams: everyone is an owner.
-      .catch(() => "owner" as const)
+      .catch(() => ({ role: "owner" as const, canScan: true }))
       .then((r) => {
-        if (!cancelled) setRole({ userId, role: r });
+        if (!cancelled) setRole({ userId, ...r });
       });
     return () => {
       cancelled = true;
@@ -88,6 +94,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       updateUser: (changes) => setUser((prev) => ({ ...prev, ...changes })),
       // Only trust a role looked up for the user who is signed in now.
       role: role && role.userId === userId ? role.role : null,
+      canScan: role && role.userId === userId ? role.canScan : null,
       refreshRole: () => {
         setRole(null); // don't keep showing the old role meanwhile
         setRoleVersion((v) => v + 1);
