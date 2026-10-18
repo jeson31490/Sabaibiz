@@ -118,10 +118,18 @@ export async function resendTeamInvite(id: string): Promise<void> {
   }
 }
 
-/** Cancels a pending invitation, or removes a member's access to the business straight away. */
+/** Cancels a pending invitation, or removes a member's access straight away. Their empty login is deleted too, so the address can be invited again from scratch. */
 export async function removeTeamMember(id: string): Promise<void> {
-  const { error } = await supabase.from("team_members").delete().eq("id", id);
-  if (error) throw error;
+  const { data } = await supabase.auth.getSession();
+  const res = await fetch("/api/team/remove", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+    body: JSON.stringify({ id }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? "We couldn't remove this person. Please try again.");
+  }
 }
 
 /** Lets an employee scan and see invoices, or takes that away. Only the owner can change it. */
