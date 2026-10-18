@@ -175,6 +175,22 @@ export async function POST(request: Request) {
   const { data: auth, error: authError } = await supabase.auth.getUser(token);
   if (authError || !auth.user) return jsonError("Your session has expired. Please sign in again.", 401);
 
+  // Employees need the owner's permission to scan. Checked as the user, so the database decides.
+  const asUser = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: mayScan, error: permissionError } = await asUser.rpc("can_scan_invoices");
+  // 42883/PGRST202: the function doesn't exist yet (18_team_permissions_attendance.sql not run) — no permissions to enforce.
+  const permissionsNotSetUp = ["42883", "PGRST202"].includes(permissionError?.code ?? "");
+  if (permissionError && !permissionsNotSetUp) {
+    console.error("scan-invoice: can_scan_invoices failed", permissionError.message);
+    return jsonError("We couldn't check your permissions. Please try again.", 500);
+  }
+  if (!permissionError && mayScan !== true) {
+    return jsonError("The owner hasn't given you access to scan invoices.", 403);
+  }
+
   let body: { pages?: unknown };
   try {
     body = await request.json();

@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   if (authError || !auth.user) return jsonError("Your session has expired. Please sign in again.", 401);
   const owner = auth.user;
 
-  let body: { email?: unknown; role?: unknown };
+  let body: { email?: unknown; role?: unknown; canScan?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -41,6 +41,8 @@ export async function POST(request: Request) {
   if (!EMAIL_RE.test(email)) return jsonError("Please enter a valid email address.", 400);
   if (!role) return jsonError("Please choose Manager or Employee.", 400);
   if (email === owner.email?.toLowerCase()) return jsonError("You're already the owner of this business.", 400);
+  // Managers always scan; for an employee the owner decides (default: allowed).
+  const canScan = role === "manager" || body.canScan !== false;
 
   // Only owners invite: for a team member this returns the owner's id, not their own.
   const { data: businessId, error: businessError } = await asOwner.rpc("current_business_id");
@@ -52,7 +54,9 @@ export async function POST(request: Request) {
 
   const { data: invite, error: insertError } = await asOwner
     .from("team_members")
-    .insert({ user_id: owner.id, invited_email: email, role })
+    // can_scan is only sent when it differs from the column default, so inviting still works
+    // before 18_team_permissions_attendance.sql has been run.
+    .insert({ user_id: owner.id, invited_email: email, role, ...(canScan ? {} : { can_scan: false }) })
     .select("id, invited_email, role, status, invited_at")
     .single();
   if (insertError) {
@@ -86,5 +90,5 @@ export async function POST(request: Request) {
     return jsonError("We couldn't send the invitation email. Please try again.", 502);
   }
 
-  return Response.json(invite, { status: 201 });
+  return Response.json({ ...invite, member_user_id: null, can_scan: canScan }, { status: 201 });
 }

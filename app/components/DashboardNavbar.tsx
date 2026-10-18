@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { getInitials, useUser } from "../context/UserContext";
+import { getInitials, useUser, type UserRole } from "../context/UserContext";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactElement } from "react";
 import { supabase } from "../../lib/supabase";
+import { useNotifications } from "../../lib/useNotifications";
 
 type IconProps = { className?: string };
 
@@ -54,6 +55,16 @@ function IconBasket({ className }: IconProps) {
   );
 }
 
+function IconPeople({ className }: IconProps) {
+  return (
+    <svg {...svgProps} className={className}>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1" />
+      <path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.3a5 5 0 0 1 4 4.7v1" />
+    </svg>
+  );
+}
+
 function IconGear({ className }: IconProps) {
   return (
     <svg {...svgProps} className={className}>
@@ -63,21 +74,39 @@ function IconGear({ className }: IconProps) {
   );
 }
 
-const NAV_ITEMS: {
+type NavItem = {
   label: string;
   href: string;
   icon: (props: IconProps) => ReactElement;
   exact?: boolean;
-}[] = [
-  { label: "Dashboard", href: "/dashboard", icon: IconHome, exact: true },
-  { label: "Invoices", href: "/dashboard/invoices", icon: IconDocument },
-  { label: "Ingredients", href: "/dashboard/ingredients", icon: IconBasket },
-  { label: "Price Analysis", href: "/dashboard/price-analysis", icon: IconChart },
-  { label: "Settings", href: "/dashboard/settings", icon: IconGear },
-];
+};
+
+const ITEM = {
+  dashboard: { label: "Dashboard", href: "/dashboard", icon: IconHome, exact: true },
+  today: { label: "Today", href: "/dashboard", icon: IconHome, exact: true },
+  myDay: { label: "My day", href: "/dashboard", icon: IconHome, exact: true },
+  invoices: { label: "Invoices", href: "/dashboard/invoices", icon: IconDocument },
+  ingredients: { label: "Ingredients", href: "/dashboard/ingredients", icon: IconBasket },
+  prices: { label: "Price Analysis", href: "/dashboard/price-analysis", icon: IconChart },
+  team: { label: "Team", href: "/dashboard/team", icon: IconPeople },
+  settings: { label: "Settings", href: "/dashboard/settings", icon: IconGear },
+} satisfies Record<string, NavItem>;
+
+// The owner sees everything. A manager has "Today" instead of the profit dashboard. An employee gets a
+// short menu, and invoices only if allowed.
+function navItemsFor(role: UserRole | null, canScan: boolean | null): NavItem[] {
+  if (role === "employee") {
+    return [ITEM.myDay, ...(canScan ? [ITEM.invoices] : []), ITEM.settings];
+  }
+  const home = role === "manager" ? ITEM.today : ITEM.dashboard;
+  return [home, ITEM.invoices, ITEM.ingredients, ITEM.prices, ITEM.team, ITEM.settings];
+}
 
 export default function DashboardNavbar() {
-  const { user } = useUser();
+  const { user, role, canScan } = useUser();
+  const navItems = navItemsFor(role, canScan);
+  // New absence declarations: only the owner and managers get them.
+  const { unread } = useNotifications(role === "owner" || role === "manager");
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -147,7 +176,7 @@ export default function DashboardNavbar() {
 
       <nav aria-label="Dashboard" className="border-t border-teal-100/80">
         <ul className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 py-1.5">
-          {NAV_ITEMS.map(({ label, href, icon: Icon, exact }) => {
+          {navItems.map(({ label, href, icon: Icon, exact }) => {
             const active = exact ? pathname === href : pathname.startsWith(href);
             return (
               <li key={href}>
@@ -162,6 +191,14 @@ export default function DashboardNavbar() {
                 >
                   <Icon className="h-4 w-4" />
                   {label}
+                  {href === ITEM.team.href && unread > 0 && (
+                    <span
+                      aria-label={`${unread} new`}
+                      className="ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-gold-500 px-1.5 text-xs font-bold text-teal-950"
+                    >
+                      {unread}
+                    </span>
+                  )}
                 </Link>
               </li>
             );

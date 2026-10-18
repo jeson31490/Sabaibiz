@@ -9,6 +9,10 @@ export type TeamMember = {
   status: "pending" | "active";
   invitedAt: string;
   acceptedAt: string | null;
+  /** Set once the invitation is accepted: this person's own user id. */
+  memberUserId: string | null;
+  /** Whether this person may scan and see invoices. Always true for managers. */
+  canScan: boolean;
 };
 
 type RawMember = {
@@ -18,9 +22,16 @@ type RawMember = {
   status: "pending" | "active";
   invited_at: string;
   accepted_at: string | null;
+  member_user_id?: string | null;
+  can_scan?: boolean | null;
 };
 
-const MEMBER_SELECT = "id, invited_email, role, status, invited_at, accepted_at";
+const BASE_SELECT = "id, invited_email, role, status, invited_at, accepted_at, member_user_id";
+const MEMBER_SELECT = `${BASE_SELECT}, can_scan`;
+
+// 42703: the can_scan column doesn't exist yet (18_team_permissions_attendance.sql not run).
+// Fall back to the old columns so the app keeps working, and keeps knowing who is a member.
+const isMissingColumn = (e: { code?: string } | null) => e?.code === "42703";
 
 const toMember = (r: RawMember): TeamMember => ({
   id: r.id,
@@ -29,32 +40,53 @@ const toMember = (r: RawMember): TeamMember => ({
   status: r.status,
   invitedAt: r.invited_at,
   acceptedAt: r.accepted_at,
+  memberUserId: r.member_user_id ?? null,
+  // Before 18_team_permissions_attendance.sql has been run there is no column: everyone could scan.
+  canScan: r.can_scan ?? true,
 });
 
 /** The owner's team, oldest invitation first. */
 export async function fetchTeam(ownerId: string): Promise<TeamMember[]> {
-  const { data, error } = await supabase
-    .from("team_members")
-    .select(MEMBER_SELECT)
-    .eq("user_id", ownerId)
-    .order("invited_at", { ascending: true });
+  const query = (columns: string) =>
+    supabase.from("team_members").select(columns).eq("user_id", ownerId).order("invited_at", { ascending: true });
+  let { data, error } = await query(MEMBER_SELECT);
+  if (isMissingColumn(error)) ({ data, error } = await query(BASE_SELECT));
   if (error) throw error;
-  return ((data ?? []) as RawMember[]).map(toMember);
+  return ((data ?? []) as unknown as RawMember[]).map(toMember);
+}
+
+/**
+ * Everyone on the team that the signed-in user is allowed to see: the owner sees their whole team,
+ * a manager sees the same team (read-only), an employee only their own row.
+ */
+export async function fetchVisibleTeam(): Promise<TeamMember[]> {
+  const query = (columns: string) =>
+    supabase.from("team_members").select(columns).order("invited_at", { ascending: true });
+  let { data, error } = await query(MEMBER_SELECT);
+  if (isMissingColumn(error)) ({ data, error } = await query(BASE_SELECT));
+  if (error) throw error;
+  return ((data ?? []) as unknown as RawMember[]).map(toMember);
+}
+
+/** The id of the business the signed-in user works in: the owner's own user id. */
+export async function fetchBusinessId(): Promise<string> {
+  const { data, error } = await supabase.rpc("current_business_id");
+  if (error) throw error;
+  return data as string;
 }
 
 /** The signed-in user's own membership of someone else's business, if they have one. */
 export async function fetchMyMembership(userId: string): Promise<TeamMember | null> {
-  const { data, error } = await supabase
-    .from("team_members")
-    .select(MEMBER_SELECT)
-    .eq("member_user_id", userId)
-    .maybeSingle();
+  const query = (columns: string) =>
+    supabase.from("team_members").select(columns).eq("member_user_id", userId).maybeSingle();
+  let { data, error } = await query(MEMBER_SELECT);
+  if (isMissingColumn(error)) ({ data, error } = await query(BASE_SELECT));
   if (error) throw error;
-  return data ? toMember(data as RawMember) : null;
+  return data ? toMember(data as unknown as RawMember) : null;
 }
 
 /** Records the invitation and sends the email (server side, see app/api/team/invite). */
-export async function inviteTeamMember(email: string, role: TeamRole): Promise<TeamMember> {
+export async function inviteTeamMember(email: string, role: TeamRole, canScan = true): Promise<TeamMember> {
   const { data } = await supabase.auth.getSession();
   const res = await fetch("/api/team/invite", {
     method: "POST",
@@ -62,7 +94,7 @@ export async function inviteTeamMember(email: string, role: TeamRole): Promise<T
       "Content-Type": "application/json",
       Authorization: `Bearer ${data.session?.access_token ?? ""}`,
     },
-    body: JSON.stringify({ email, role }),
+    body: JSON.stringify({ email, role, canScan }),
   });
   const body = await res.json().catch(() => null);
   if (!res.ok) throw new Error(body?.error ?? "We couldn't send the invitation. Please try again.");
@@ -73,6 +105,14 @@ export async function inviteTeamMember(email: string, role: TeamRole): Promise<T
 export async function removeTeamMember(id: string): Promise<void> {
   const { error } = await supabase.from("team_members").delete().eq("id", id);
   if (error) throw error;
+}
+
+/** Lets an employee scan and see invoices, or takes that away. Only the owner can change it. */
+export async function setTeamMemberCanScan(id: string, canScan: boolean): Promise<void> {
+  const { data, error } = await supabase.from("team_members").update({ can_scan: canScan }).eq("id", id).select("id");
+  if (error) throw error;
+  // Row Level Security filters out rows that aren't yours without an error.
+  if (!data || data.length === 0) throw new Error("This permission could not be changed.");
 }
 
 /** Links the signed-in (invited) user to the business that invited their email. Null if there was no invitation. */

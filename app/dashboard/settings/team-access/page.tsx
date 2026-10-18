@@ -10,6 +10,7 @@ import {
   fetchTeam,
   inviteTeamMember,
   removeTeamMember,
+  setTeamMemberCanScan,
   type TeamMember,
   type TeamRole,
 } from "../../../../lib/team";
@@ -39,6 +40,9 @@ export default function TeamAccessPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
+  const [inviteRole, setInviteRole] = useState<TeamRole>("manager");
+  const [savingScanId, setSavingScanId] = useState<string | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,20 +79,51 @@ export default function TeamAccessPage() {
     const data = new FormData(form);
     const email = String(data.get("inviteEmail")).trim();
     const role = String(data.get("inviteRole")).toLowerCase() as TeamRole;
+    // The checkbox only exists for employees; managers always scan.
+    const canScan = role === "manager" || data.get("inviteCanScan") === "on";
 
     setSending(true);
     setInviteError(null);
     setNotice(null);
     try {
-      const member = await inviteTeamMember(email, role);
+      const member = await inviteTeamMember(email, role, canScan);
       setLoad((prev) => (prev.status === "owner" ? { ...prev, members: [...prev.members, member] } : prev));
       setNotice(`Invitation sent to ${member.email}.`);
       form.reset();
+      setInviteRole("manager");
       setInviting(false);
     } catch (err) {
       setInviteError(err instanceof Error ? err.message : "We couldn't send the invitation. Please try again.");
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleToggleScan(member: TeamMember) {
+    const next = !member.canScan;
+    setScanError(null);
+    setNotice(null);
+    setSavingScanId(member.id);
+    try {
+      await setTeamMemberCanScan(member.id, next);
+      setLoad((prev) =>
+        prev.status === "owner"
+          ? { ...prev, members: prev.members.map((m) => (m.id === member.id ? { ...m, canScan: next } : m)) }
+          : prev,
+      );
+      setNotice(
+        next
+          ? `${member.email} can now scan and see invoices.`
+          : `${member.email} can no longer scan or see invoices. They can still clock in and declare absences.`,
+      );
+    } catch (err) {
+      setScanError(
+        err instanceof Error && err.message.startsWith("This permission")
+          ? err.message
+          : "We couldn't change this permission. Make sure supabase/18_team_permissions_attendance.sql has been run.",
+      );
+    } finally {
+      setSavingScanId(null);
     }
   }
 
@@ -158,13 +193,40 @@ export default function TeamAccessPage() {
             >
               <h2 className="text-lg font-semibold text-teal-950">Invite a team member</h2>
               <p className="mt-1 text-sm text-teal-900/65">
-                They&apos;ll get an email with a link to join {user.businessName}. Team members see and add this
-                business&apos;s invoices.
+                They&apos;ll get an email with a link to join {user.businessName}. Everyone can clock in and declare
+                an absence; you choose who can scan invoices.
               </p>
               <div className="mt-5 grid gap-5 sm:grid-cols-2">
                 <Field id="inviteEmail" label="Email" type="email" autoComplete="off" required />
-                <SelectField id="inviteRole" label="Role" options={INVITE_ROLES} defaultValue="Manager" />
+                <SelectField
+                  id="inviteRole"
+                  label="Role"
+                  options={INVITE_ROLES}
+                  defaultValue="Manager"
+                  onChange={(e) => setInviteRole(e.target.value.toLowerCase() as TeamRole)}
+                />
               </div>
+              {inviteRole === "employee" ? (
+                <label className="mt-5 flex items-start gap-3 rounded-xl border border-teal-100 bg-teal-50/60 p-4 text-sm text-teal-950">
+                  <input
+                    type="checkbox"
+                    name="inviteCanScan"
+                    defaultChecked
+                    className="mt-0.5 h-4 w-4 rounded border-teal-300 accent-teal-700"
+                  />
+                  <span>
+                    <strong>Can scan and see invoices</strong>
+                    <span className="mt-0.5 block text-teal-900/70">
+                      Leave it unticked for people who only need to clock in and declare an absence. You can change
+                      it later.
+                    </span>
+                  </span>
+                </label>
+              ) : (
+                <p className="mt-5 text-sm text-teal-900/65">
+                  Managers can scan and see invoices, and see your team&apos;s attendance and absences.
+                </p>
+              )}
               {inviteError && (
                 <p role="alert" className="mt-4 text-sm font-medium text-red-600">
                   {inviteError}
@@ -194,6 +256,11 @@ export default function TeamAccessPage() {
               {notice}
             </p>
           )}
+          {scanError && (
+            <p role="alert" className="mt-6 text-sm font-medium text-red-600">
+              {scanError}
+            </p>
+          )}
           {removeError && (
             <p role="alert" className="mt-6 text-sm font-medium text-red-600">
               {removeError}
@@ -202,11 +269,12 @@ export default function TeamAccessPage() {
 
           <section className="mt-8 rounded-2xl border border-teal-100 bg-white shadow-card">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[680px] text-left text-sm">
+              <table className="w-full min-w-[780px] text-left text-sm">
                 <thead>
                   <tr className="text-xs font-semibold uppercase tracking-wide text-teal-900/55">
                     <th className="px-6 py-3">Email</th>
                     <th className="px-6 py-3">Role</th>
+                    <th className="px-6 py-3">Invoice scan</th>
                     <th className="px-6 py-3">Status</th>
                     <th className="px-6 py-3">Since</th>
                     <th className="px-6 py-3 text-right">
@@ -221,6 +289,7 @@ export default function TeamAccessPage() {
                       <span className="ml-2 text-xs font-normal text-teal-900/55">(you)</span>
                     </td>
                     <td className="px-6 py-4 text-teal-900/80">Owner</td>
+                    <td className="px-6 py-4 text-teal-900/60">Always</td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">
                         Active
@@ -233,6 +302,34 @@ export default function TeamAccessPage() {
                     <tr key={m.id} className="transition hover:bg-teal-50/60">
                       <td className="px-6 py-4 font-medium text-teal-950">{m.email}</td>
                       <td className="px-6 py-4 text-teal-900/80">{roleLabel(m.role)}</td>
+                      <td className="px-6 py-4">
+                        {m.role === "manager" ? (
+                          <span className="text-teal-900/60">Always</span>
+                        ) : (
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={m.canScan}
+                            aria-label={`Allow ${m.email} to scan and see invoices`}
+                            disabled={savingScanId === m.id}
+                            onClick={() => handleToggleScan(m)}
+                            className="inline-flex items-center gap-2 disabled:opacity-60"
+                          >
+                            <span
+                              className={`relative inline-block h-6 w-11 rounded-full transition ${
+                                m.canScan ? "bg-teal-700" : "bg-teal-900/20"
+                              }`}
+                            >
+                              <span
+                                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                                  m.canScan ? "left-[22px]" : "left-0.5"
+                                }`}
+                              />
+                            </span>
+                            <span className="text-xs font-semibold text-teal-900/80">{m.canScan ? "Allowed" : "Off"}</span>
+                          </button>
+                        )}
+                      </td>
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
@@ -281,7 +378,7 @@ export default function TeamAccessPage() {
             </div>
             {load.members.length === 0 && (
               <p className="border-t border-teal-100 px-6 py-5 text-sm text-teal-900/65">
-                No team members yet. Invite a manager or employee to let them scan and view invoices.
+                No team members yet. Invite a manager or an employee: they can clock in and declare absences, and you choose who scans invoices.
               </p>
             )}
           </section>

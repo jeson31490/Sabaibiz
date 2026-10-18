@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode } from "react";
+import type { ChangeEventHandler, InputHTMLAttributes, ReactNode } from "react";
 
 export const inputClass =
   "mt-1.5 w-full rounded-xl border border-teal-200 bg-white px-4 py-3 text-base text-teal-950 placeholder:text-teal-900/40 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20";
@@ -24,18 +24,20 @@ export function SelectField({
   label,
   options,
   defaultValue,
+  onChange,
 }: {
   id: string;
   label: string;
   options: string[];
   defaultValue?: string;
+  onChange?: ChangeEventHandler<HTMLSelectElement>;
 }): ReactNode {
   return (
     <div>
       <label htmlFor={id} className={labelClass}>
         {label}
       </label>
-      <select id={id} name={id} defaultValue={defaultValue} className={inputClass}>
+      <select id={id} name={id} defaultValue={defaultValue} onChange={onChange} className={inputClass}>
         {options.map((o) => (
           <option key={o} value={o}>
             {o}
