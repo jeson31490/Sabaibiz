@@ -10,6 +10,7 @@ import {
   fetchTeam,
   inviteTeamMember,
   removeTeamMember,
+  resendTeamInvite,
   setTeamMemberCanScan,
   type TeamMember,
   type TeamRole,
@@ -43,6 +44,8 @@ export default function TeamAccessPage() {
   const [inviteRole, setInviteRole] = useState<TeamRole>("manager");
   const [savingScanId, setSavingScanId] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [resendError, setResendError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,6 +127,20 @@ export default function TeamAccessPage() {
       );
     } finally {
       setSavingScanId(null);
+    }
+  }
+
+  async function handleResend(member: TeamMember) {
+    setResendError(null);
+    setNotice(null);
+    setResendingId(member.id);
+    try {
+      await resendTeamInvite(member.id);
+      setNotice(`A new invitation was sent to ${member.email}.`);
+    } catch (err) {
+      setResendError(err instanceof Error ? err.message : "We couldn't send the invitation again.");
+    } finally {
+      setResendingId(null);
     }
   }
 
@@ -256,6 +273,11 @@ export default function TeamAccessPage() {
               {notice}
             </p>
           )}
+          {resendError && (
+            <p role="alert" className="mt-6 text-sm font-medium text-red-600">
+              {resendError}
+            </p>
+          )}
           {scanError && (
             <p role="alert" className="mt-6 text-sm font-medium text-red-600">
               {scanError}
@@ -269,7 +291,7 @@ export default function TeamAccessPage() {
 
           <section className="mt-8 rounded-2xl border border-teal-100 bg-white shadow-card">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[780px] text-left text-sm">
+              <table className="w-full min-w-[860px] text-left text-sm">
                 <thead>
                   <tr className="text-xs font-semibold uppercase tracking-wide text-teal-900/55">
                     <th className="px-6 py-3">Email</th>
@@ -361,14 +383,27 @@ export default function TeamAccessPage() {
                             </button>
                           </span>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => setConfirmingId(m.id)}
-                            aria-label={`Remove ${m.email}`}
-                            className="rounded-full border border-red-200 px-4 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
-                          >
-                            Remove
-                          </button>
+                          <span className="inline-flex items-center gap-2">
+                            {m.status === "pending" && (
+                              <button
+                                type="button"
+                                onClick={() => handleResend(m)}
+                                disabled={resendingId === m.id}
+                                aria-label={`Send the invitation to ${m.email} again`}
+                                className="rounded-full border border-teal-200 px-4 py-1.5 text-xs font-semibold text-teal-800 transition hover:bg-teal-50 disabled:cursor-wait disabled:opacity-60"
+                              >
+                                {resendingId === m.id ? "Sending…" : "Resend invite"}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setConfirmingId(m.id)}
+                              aria-label={`Remove ${m.email}`}
+                              className="rounded-full border border-red-200 px-4 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                            >
+                              Remove
+                            </button>
+                          </span>
                         )}
                       </td>
                     </tr>
