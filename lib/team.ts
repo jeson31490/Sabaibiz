@@ -140,3 +140,24 @@ export async function acceptTeamInvite(): Promise<TeamMember | null> {
   const row = data as RawMember | null;
   return row?.id ? toMember(row) : null;
 }
+
+/**
+ * Joins the business that invited this e-mail address, if there is a pending invitation and the account
+ * has no business of its own yet (no invoices, suppliers or team). This covers people who set their
+ * password through "Forgot password" instead of the invitation link: without it they would stay owners of
+ * an empty business. Returns true when they just joined.
+ */
+export async function joinPendingInvite(userId: string): Promise<boolean> {
+  const count = async (table: string) => {
+    const { count: n, error } = await supabase
+      .from(table)
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId);
+    if (error) throw error;
+    return n ?? 0;
+  };
+  const owned = await Promise.all([count("invoices"), count("suppliers"), count("team_members")]);
+  if (owned.some((n) => n > 0)) return false;
+  const joined = await acceptTeamInvite();
+  return joined !== null;
+}

@@ -4,7 +4,7 @@ import type { User } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getAvatarUrl } from "../../lib/avatar";
 import { supabase } from "../../lib/supabase";
-import { fetchMyMembership } from "../../lib/team";
+import { fetchMyMembership, joinPendingInvite } from "../../lib/team";
 
 /** Owner of the business, or a team member who joined it. */
 export type UserRole = "owner" | "manager" | "employee";
@@ -73,6 +73,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (!userId) return;
     let cancelled = false;
     fetchMyMembership(userId)
+      .then(async (m) => {
+        if (m?.status === "active") return m;
+        // Invited but never opened the invitation link (e.g. used "Forgot password")? Join now.
+        try {
+          if (await joinPendingInvite(userId)) return await fetchMyMembership(userId);
+        } catch {
+          // Not joined: carry on as the owner of their own business.
+        }
+        return m;
+      })
       .then((m) =>
         m?.status === "active"
           ? { role: m.role, canScan: m.role === "manager" || m.canScan }
