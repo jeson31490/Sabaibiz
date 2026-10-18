@@ -101,6 +101,23 @@ export async function inviteTeamMember(email: string, role: TeamRole, canScan = 
   return toMember(body as RawMember);
 }
 
+/** Sends the invitation e-mail again to someone who hasn't joined yet (the link expired or got lost). */
+export async function resendTeamInvite(id: string): Promise<void> {
+  const { data } = await supabase.auth.getSession();
+  const res = await fetch("/api/team/invite", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${data.session?.access_token ?? ""}`,
+    },
+    body: JSON.stringify({ resendId: id }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? "We couldn't send the invitation again. Please try again.");
+  }
+}
+
 /** Cancels a pending invitation, or removes a member's access to the business straight away. */
 export async function removeTeamMember(id: string): Promise<void> {
   const { error } = await supabase.from("team_members").delete().eq("id", id);
