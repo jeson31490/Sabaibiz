@@ -34,14 +34,15 @@ export const PLANS: Record<PlanId, Plan> = {
     id: "free",
     name: "Free",
     priceMonthly: 0,
-    scansPerMonth: 10,
+    // Free costs us nothing: no invoice reading (it calls the AI), so no scans at all.
+    scansPerMonth: 0,
     teamSeats: 0,
-    tagline: "Try Sabai on your real invoices.",
-    taglineTh: "ลองกับบิลจริงของคุณ",
+    tagline: "Track your prices by hand. Free forever.",
+    taglineTh: "จดราคาวัตถุดิบเองได้ ฟรีตลอด",
     features: [
-      { text: "10 invoice scans per month", th: "สแกนบิล 10 ใบต่อเดือน" },
-      { text: "Invoice archive, always searchable", th: "เก็บบิลทั้งหมด ค้นหาได้ตลอด" },
+      { text: "Add ingredients and prices by hand", th: "เพิ่มวัตถุดิบและราคาเอง" },
       { text: "Price tracking per product", th: "ติดตามราคาสินค้าแต่ละรายการ" },
+      { text: "Invoice reading is on paid plans", th: "การอ่านบิลอัตโนมัติอยู่ในแพ็กเกจที่ชำระเงิน" },
     ],
   },
   solo: {

@@ -55,9 +55,11 @@ export default function SubscriptionDetailsPage() {
                 />
               </div>
               <p className="mt-2 text-sm text-teal-900/65">
-                {usage.scansLeft === 0
-                  ? `You've used all your scans. They come back on ${formatDate(usage.resetsAt)}.`
-                  : `${usage.scansLeft} left. Your scans reset on ${formatDate(usage.resetsAt)}.`}
+                {limit === 0
+                  ? "Your plan doesn't include invoice reading. Compare plans to add it."
+                  : usage.scansLeft === 0
+                    ? `You've used all your scans. They come back on ${formatDate(usage.resetsAt)}.`
+                    : `${usage.scansLeft} left. Your scans reset on ${formatDate(usage.resetsAt)}.`}
               </p>
             </div>
 

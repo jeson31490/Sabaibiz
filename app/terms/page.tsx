@@ -27,10 +27,10 @@ export default function TermsPage() {
 
       <Section title="Plans, scans and payment">
         <p>
-          Each plan includes a number of invoice scans per calendar month (Bangkok time). Every reading counts, including
-          retries. When the allowance is used up you can wait for the next month or move to a larger plan. Prices are shown in
+          Paid plans include a number of invoice scans per calendar month (Bangkok time). Every reading counts, including
+          retries. The free plan does not include invoice reading. When the allowance is used up you can wait for the next month or move to a larger plan. Prices are shown in
           Thai baht. Paid plans open once online payment is available, and we show you the final price and billing terms
-          before you pay. A free plan stays free.
+          before you pay. The free plan stays free.
         </p>
       </Section>
 

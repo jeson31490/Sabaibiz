@@ -9,6 +9,16 @@ export default function ScanQuota() {
   if (!usage || usage.degraded) return null;
 
   const { scansLeft, plan } = usage;
+  if (plan.scansPerMonth === 0) {
+    return (
+      <p className="mt-4 rounded-xl bg-gold-100 px-4 py-3 text-center text-sm text-gold-800">
+        <span className="font-semibold">Reading invoices is part of the paid plans.</span>{" "}
+        <Link href="/dashboard/settings/subscription-plan" className="font-semibold underline underline-offset-2">
+          See plans
+        </Link>
+      </p>
+    );
+  }
   const low = scansLeft <= Math.max(2, Math.ceil(plan.scansPerMonth * 0.2));
   const resetDay = usage.resetsAt.toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "Asia/Bangkok" });
 

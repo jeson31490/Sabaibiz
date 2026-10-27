@@ -22,7 +22,7 @@ const QA: { q: string; a: string }[] = [
   },
   {
     q: "What happens when I use all my scans?",
-    a: "Scanning pauses until the 1st of next month, or until you move to a bigger plan. Your invoices, prices and history stay available.",
+    a: "Scanning pauses until the 1st of next month, or until you move to a bigger plan. The free plan has no scans: reading invoices automatically is part of the paid plans, and you can still add ingredients and prices by hand. Your invoices, prices and history stay available.",
   },
   {
     q: "Can I pay for a plan now?",

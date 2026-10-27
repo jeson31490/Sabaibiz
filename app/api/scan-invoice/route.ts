@@ -199,7 +199,10 @@ export async function POST(request: Request) {
   if (!usage.degraded && usage.scansLeft <= 0) {
     return Response.json(
       {
-        error: `You've used all ${usage.plan.scansPerMonth} scans of your ${usage.plan.name} plan this month. They come back on ${formatResetDate(usage.resetsAt)}, or you can upgrade your plan.`,
+        error:
+          usage.plan.scansPerMonth === 0
+            ? `Reading invoices automatically is part of the paid plans. Your ${usage.plan.name} plan doesn't include it. You can upgrade your plan, or add ingredients and prices by hand.`
+            : `You've used all ${usage.plan.scansPerMonth} scans of your ${usage.plan.name} plan this month. They come back on ${formatResetDate(usage.resetsAt)}, or you can upgrade your plan.`,
         code: "quota_exceeded",
       },
       { status: 402 },

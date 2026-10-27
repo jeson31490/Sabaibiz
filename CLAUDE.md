@@ -19,7 +19,7 @@ Shop, cafe and restaurant owners across Thailand (starting in Koh Samui). The ap
 ## Pricing plans
 Source of truth: `lib/plans.ts` (prices, monthly scan quotas, team seats). The plan of each business lives in
 `business_plans` (`supabase/18_plans_and_quotas.sql`); only the server / service role can change it.
-- Free: 0 baht, 10 invoice scans/month, no team accounts
+- Free: 0 baht, NO invoice scans (reading calls the AI and must cost us nothing); manual ingredients/prices only, no team accounts
 - Solo: 299 baht/month, 60 scans, 1 team account
 - Team: 690 baht/month, 150 scans, 3 team accounts (recommended)
 - Empire: 1990 baht/month, 400 scans, unlimited team accounts
