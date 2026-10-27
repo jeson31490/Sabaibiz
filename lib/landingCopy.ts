@@ -55,7 +55,7 @@ export type LandingCopy = {
     mascotAlt: string;
   };
   closing: { title: string; text: string; cta: string; mascotAlt: string };
-  footer: { rights: string; privacy: string; terms: string; contact: string };
+  footer: { rights: string; faq: string; privacy: string; terms: string; contact: string };
 };
 
 export const COPY: Record<Lang, LandingCopy> = {
@@ -160,7 +160,7 @@ export const COPY: Record<Lang, LandingCopy> = {
       cta: "Start free",
       mascotAlt: "The Sabai mascot",
     },
-    footer: { rights: "All rights reserved.", privacy: "Privacy", terms: "Terms", contact: "Contact" },
+    footer: { rights: "All rights reserved.", faq: "FAQ", privacy: "Privacy", terms: "Terms", contact: "Contact" },
   },
 
   th: {
@@ -264,6 +264,6 @@ export const COPY: Record<Lang, LandingCopy> = {
       cta: "เริ่มใช้ฟรี",
       mascotAlt: "มาสคอต Sabai",
     },
-    footer: { rights: "สงวนลิขสิทธิ์", privacy: "ความเป็นส่วนตัว", terms: "ข้อกำหนด", contact: "ติดต่อ" },
+    footer: { rights: "สงวนลิขสิทธิ์", faq: "คำถามที่พบบ่อย", privacy: "ความเป็นส่วนตัว", terms: "ข้อกำหนด", contact: "ติดต่อ" },
   },
 };

@@ -13,7 +13,7 @@ export function Section({ title, children }: { title: string; children: ReactNod
   );
 }
 
-export default function LegalPage({ title, children }: { title: string; children: ReactNode }) {
+export default function LegalPage({ title, children, showUpdated = true }: { title: string; children: ReactNode; showUpdated?: boolean }) {
   return (
     <div className="min-h-screen bg-white">
       <header className="border-b border-teal-100">
@@ -28,7 +28,7 @@ export default function LegalPage({ title, children }: { title: string; children
       </header>
       <main className="mx-auto max-w-3xl px-6 py-12">
         <h1 className="text-3xl font-bold tracking-tight text-teal-950">{title}</h1>
-        <p className="mt-2 text-sm text-teal-900/60">Last updated {LEGAL_UPDATED}</p>
+        {showUpdated && <p className="mt-2 text-sm text-teal-900/60">Last updated {LEGAL_UPDATED}</p>}
         {children}
         <Section title="Contact">
           <p>

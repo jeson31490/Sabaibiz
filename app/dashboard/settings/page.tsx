@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import DashboardNavbar from "../../components/DashboardNavbar";
+import HelpLinks from "../../components/HelpLinks";
 import SettingsCards from "../../components/SettingsCards";
 
 export const metadata: Metadata = {
@@ -25,6 +26,8 @@ export default function SettingsPage() {
         </h1>
 
         <SettingsCards />
+
+        <HelpLinks />
       </main>
     </div>
   );

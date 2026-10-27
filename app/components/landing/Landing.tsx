@@ -273,6 +273,9 @@ export default function Landing({ lang }: { lang: Lang }) {
             © {new Date().getFullYear()} Sabai. {t.footer.rights}
           </span>
           <div className="flex gap-6">
+            <Link href="/faq" className="transition hover:text-teal-800">
+              {t.footer.faq}
+            </Link>
             <Link href="/privacy" className="transition hover:text-teal-800">
               {t.footer.privacy}
             </Link>
