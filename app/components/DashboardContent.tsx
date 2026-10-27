@@ -313,15 +313,37 @@ export default function DashboardContent() {
           </Link>
         )}
 
-        {/* KPI cards */}
-        <section aria-label="Key numbers" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {kpis.map(({ label, value, note }) => (
-            <div key={label} className="rounded-2xl border border-teal-100 bg-white p-6 shadow-card">
-              <p className="text-sm font-medium text-teal-900/65">{label}</p>
-              <p className="mt-3 text-3xl font-bold tracking-tight text-teal-950">{value}</p>
-              <p className="mt-1 text-xs text-gray-500">{note}</p>
+        {/* The money ticket: in, out, what is left. Same receipt look as the landing page. */}
+        <section aria-label="Key numbers" className="grid items-start gap-6 lg:grid-cols-[minmax(0,26rem)_1fr]">
+          <div style={{ filter: "drop-shadow(0 10px 18px rgba(5, 46, 51, 0.15))" }}>
+            <div
+              className="bg-paper px-6 pb-9 pt-6 text-teal-950"
+              style={{
+                WebkitMask: "conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 16px 100%",
+                mask: "conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 16px 100%",
+              }}
+            >
+              <p className="text-lg font-semibold">
+                {periodId === "custom" ? "Selected period" : PERIODS.find((p) => p.id === periodId)!.label}
+              </p>
+              <div className="mt-3 border-t border-dashed border-teal-950/30" />
+              <dl className="num mt-4 space-y-4">
+                {kpis.map(({ label, value, note }, i) => (
+                  <div key={label} className={i === 2 ? "border-t border-dashed border-teal-950/30 pt-4" : ""}>
+                    <dt className="text-sm font-medium text-teal-900/70">{label}</dt>
+                    <dd
+                      className={`mt-0.5 whitespace-nowrap text-right font-bold ${
+                        i === 2 ? "text-3xl text-teal-700" : i === 1 ? "text-2xl text-crimson-600" : "text-2xl text-teal-700"
+                      }`}
+                    >
+                      {value}
+                    </dd>
+                    <p className="mt-0.5 text-xs text-teal-900/60">{note}</p>
+                  </div>
+                ))}
+              </dl>
             </div>
-          ))}
+          </div>
           <PriceAlertsCard alerts={ready?.alerts ?? []} />
         </section>
 

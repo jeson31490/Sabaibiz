@@ -1,14 +1,28 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import "@fontsource/prompt/latin-400.css";
+import "@fontsource/prompt/latin-500.css";
+import "@fontsource/prompt/latin-600.css";
+import "@fontsource/prompt/latin-700.css";
+import "@fontsource/prompt/thai-400.css";
+import "@fontsource/prompt/thai-500.css";
+import "@fontsource/prompt/thai-600.css";
+import "@fontsource/prompt/thai-700.css";
 import "./globals.css";
 import { UserProvider } from "./context/UserContext";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://sabaibiz.com"),
+  icons: { apple: "/apple-touch-icon.png" },
   title: {
-    default: "Sabai — Photograph your invoices. Sabai does the accounting.",
+    default: "Sabai: photograph your invoices, see today's money in and out",
     template: "%s · Sabai",
   },
   description:
-    "Know your real profit on every dish, every day, without spreadsheets.",
+    "Sabai reads your supplier invoices, adds your till sales and shows what came in and went out today.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a646d",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -87,6 +87,7 @@ const ITEM = {
   myDay: { label: "My day", href: "/dashboard", icon: IconHome, exact: true },
   invoices: { label: "Invoices", href: "/dashboard/invoices", icon: IconDocument },
   ingredients: { label: "Ingredients", href: "/dashboard/ingredients", icon: IconBasket },
+  recipes: { label: "Recipes", href: "/dashboard/recipes", icon: IconDocument },
   prices: { label: "Price Analysis", href: "/dashboard/price-analysis", icon: IconChart },
   team: { label: "Team", href: "/dashboard/team", icon: IconPeople },
   settings: { label: "Settings", href: "/dashboard/settings", icon: IconGear },
@@ -99,7 +100,7 @@ function navItemsFor(role: UserRole | null, canScan: boolean | null): NavItem[] 
     return [ITEM.myDay, ...(canScan ? [ITEM.invoices] : []), ITEM.settings];
   }
   const home = role === "manager" ? ITEM.today : ITEM.dashboard;
-  return [home, ITEM.invoices, ITEM.ingredients, ITEM.prices, ITEM.team, ITEM.settings];
+  return [home, ITEM.invoices, ITEM.ingredients, ...(role === "manager" ? [] : [ITEM.recipes]), ITEM.prices, ITEM.team, ITEM.settings];
 }
 
 export default function DashboardNavbar() {

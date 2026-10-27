@@ -13,6 +13,7 @@ import {
   type CustomRange,
   type DateFilter,
 } from "../../../lib/dateFilters";
+import { downloadCsv, toCsv } from "../../../lib/csv";
 import { fetchInvoices, fromIsoDate, toIsoDate, type InvoiceRow } from "../../../lib/invoices";
 
 const TODAY = dayStart(new Date());
@@ -139,6 +140,14 @@ export default function InvoicesPage() {
     setCustomRange(range);
   }
 
+  function exportCsv() {
+    const csv = toCsv(
+      ["Date", "Invoice number", "Supplier", "Products", "Total (THB)", "Status"],
+      rows.map((i) => [i.date, i.generatedNumber ? "" : i.number, i.supplier, i.products, i.total.toFixed(2), i.status]),
+    );
+    downloadCsv(`sabaibiz-invoices-${toIsoDate(new Date())}.csv`, csv);
+  }
+
   const selectClass = `${inputClass} mt-0`;
   const isEmpty = load.status === "ready" && invoices.length === 0;
 
@@ -205,6 +214,17 @@ export default function InvoicesPage() {
                 </div>
               ))}
             </section>
+
+            <div className="-mb-2 flex justify-end">
+              <button
+                type="button"
+                onClick={exportCsv}
+                disabled={rows.length === 0}
+                className="rounded-full border border-teal-200 bg-white px-5 py-2 text-sm font-semibold text-teal-800 transition hover:bg-teal-50 disabled:opacity-50"
+              >
+                Export {rows.length} {rows.length === 1 ? "invoice" : "invoices"} for your accountant (CSV)
+              </button>
+            </div>
 
             {/* Filters */}
             <section aria-label="Search and filters" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">

@@ -11,6 +11,8 @@ import {
   type PurchaseContent,
   shortSupplierName,
 } from "../../../lib/scanInvoice";
+import { fetchPlanUsage } from "../../../lib/billing";
+import { formatResetDate } from "../../../lib/plans";
 import { supabase } from "../../../lib/supabase";
 
 // Reading a long invoice can take a while.
@@ -189,6 +191,19 @@ export async function POST(request: Request) {
   }
   if (!permissionError && mayScan !== true) {
     return jsonError("The owner hasn't given you access to scan invoices.", 403);
+  }
+
+  // The plan's monthly allowance, checked before anything is sent to Claude (supabase/20_plans_and_quotas.sql).
+  // If the plans table can't be read, nothing is blocked (see fetchPlanUsage).
+  const usage = await fetchPlanUsage(asUser);
+  if (!usage.degraded && usage.scansLeft <= 0) {
+    return Response.json(
+      {
+        error: `You've used all ${usage.plan.scansPerMonth} scans of your ${usage.plan.name} plan this month. They come back on ${formatResetDate(usage.resetsAt)}, or you can upgrade your plan.`,
+        code: "quota_exceeded",
+      },
+      { status: 402 },
+    );
   }
 
   let body: { pages?: unknown };
