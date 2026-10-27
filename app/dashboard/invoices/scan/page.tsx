@@ -18,6 +18,7 @@ import {
 } from "../../../../lib/invoices";
 import { CATEGORY_LABELS, checkLine, MAX_INVOICE_PAGES } from "../../../../lib/scanInvoice";
 import LineTotal from "../../../components/LineTotal";
+import ScanQuota from "../../../components/ScanQuota";
 import { supabase } from "../../../../lib/supabase";
 import type { ScanResult } from "../../../api/scan-invoice/route";
 
@@ -505,6 +506,7 @@ export default function ScanInvoicePage() {
                 {error}
               </p>
             )}
+            <ScanQuota />
             <p className="mt-4 text-center text-xs text-gray-500">
               Accepted formats: JPG, PNG, PDF. Max size: 10MB. Up to {MAX_INVOICE_PAGES} pages per invoice.
             </p>

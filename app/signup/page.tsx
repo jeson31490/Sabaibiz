@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState, type FormEvent } from "react";
 import { useUser } from "../context/UserContext";
 import { supabase } from "../../lib/supabase";
+import { AUTH, authLang } from "../../lib/authCopy";
 
 const COUNTRIES = [
   "Thailand",
@@ -23,6 +24,17 @@ const inputClass =
 const labelClass = "block text-sm font-medium text-teal-900";
 
 export default function SignupPage() {
+  return (
+    <Suspense>
+      <SignupForm />
+    </Suspense>
+  );
+}
+
+function SignupForm() {
+  const lang = authLang(useSearchParams().get("lang"));
+  const t = AUTH[lang];
+  const q = lang === "th" ? "?lang=th" : "";
   const router = useRouter();
   const { updateUser } = useUser();
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +45,7 @@ export default function SignupPage() {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
     if (data.get("password") !== data.get("confirmPassword")) {
-      setError("Passwords do not match.");
+      setError(t.mismatch);
       setSuccess(null);
       return;
     }
@@ -63,7 +75,7 @@ export default function SignupPage() {
     // With email confirmation on, Supabase answers an existing address with an
     // obfuscated user that has no identities instead of an error.
     if (result.user && result.user.identities?.length === 0) {
-      setError("An account with this email already exists. Try signing in instead.");
+      setError(t.exists);
       return;
     }
 
@@ -72,16 +84,16 @@ export default function SignupPage() {
       // Email confirmation is off: the user is already signed in.
       router.push("/dashboard");
     } else {
-      setSuccess("Account created! Check your email and click the confirmation link, then sign in.");
+      setSuccess(t.checkEmail);
     }
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center bg-teal-50/60 px-6 py-10">
+    <main lang={lang} className="flex min-h-screen flex-col items-center bg-teal-50/60 px-6 py-10">
       <Link href="/" className="flex items-center gap-1">
         <Image
           src="/Thaimen1.png"
-          alt="Sabai mascot"
+          alt={t.mascotAlt}
           width={1380}
           height={1349}
           sizes="66px"
@@ -90,7 +102,7 @@ export default function SignupPage() {
         />
         <Image
           src="/sabaibiz-logo.png"
-          alt="SabaiBiz logo"
+          alt={t.logoAlt}
           width={2816}
           height={1536}
           sizes="300px"
@@ -101,13 +113,13 @@ export default function SignupPage() {
 
       <div className="mt-6 w-full max-w-md rounded-2xl border border-teal-100 bg-white p-8 shadow-card">
         <h1 className="text-center text-3xl font-bold tracking-tight text-teal-950">
-          Create your account
+          {t.signupTitle}
         </h1>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-5">
           <div>
             <label htmlFor="fullName" className={labelClass}>
-              Full name
+              {t.fullName}
             </label>
             <input
               id="fullName"
@@ -120,7 +132,7 @@ export default function SignupPage() {
           </div>
           <div>
             <label htmlFor="email" className={labelClass}>
-              Email
+              {t.email}
             </label>
             <input
               id="email"
@@ -133,7 +145,7 @@ export default function SignupPage() {
           </div>
           <div>
             <label htmlFor="password" className={labelClass}>
-              Password
+              {t.password}
             </label>
             <input
               id="password"
@@ -147,7 +159,7 @@ export default function SignupPage() {
           </div>
           <div>
             <label htmlFor="confirmPassword" className={labelClass}>
-              Confirm password
+              {t.confirmPassword}
             </label>
             <input
               id="confirmPassword"
@@ -161,7 +173,7 @@ export default function SignupPage() {
           </div>
           <div>
             <label htmlFor="businessName" className={labelClass}>
-              Business name
+              {t.businessName}
             </label>
             <input
               id="businessName"
@@ -174,7 +186,7 @@ export default function SignupPage() {
           </div>
           <div>
             <label htmlFor="country" className={labelClass}>
-              Country
+              {t.country}
             </label>
             <select
               id="country"
@@ -208,17 +220,29 @@ export default function SignupPage() {
             disabled={submitting}
             className="w-full rounded-full bg-gold-500 px-8 py-4 text-lg font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400 disabled:cursor-wait disabled:opacity-60 disabled:hover:bg-gold-500"
           >
-            {submitting ? "Creating your account…" : "Create my account"}
+            {submitting ? t.creating : t.create}
           </button>
+
+          <p className="text-center text-xs text-teal-900/60">
+            {t.consentBefore}{" "}
+            <Link href="/terms" className="font-semibold underline">
+              {t.terms}
+            </Link>{" "}
+            {t.and}{" "}
+            <Link href="/privacy" className="font-semibold underline">
+              {t.privacy}
+            </Link>
+            .
+          </p>
         </form>
 
         <p className="mt-6 text-center text-sm text-teal-900/70">
-          Already have an account?{" "}
+          {t.haveAccount}{" "}
           <Link
-            href="/login"
+            href={`/login${q}`}
             className="font-semibold text-teal-700 hover:text-teal-900"
           >
-            Sign in
+            {t.signIn}
           </Link>
         </p>
       </div>

@@ -2,16 +2,28 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState, type FormEvent } from "react";
 import { useUser } from "../context/UserContext";
 import { supabase } from "../../lib/supabase";
+import { AUTH, authLang } from "../../lib/authCopy";
 
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-teal-200 bg-white px-4 py-3 text-base text-teal-950 placeholder:text-teal-900/40 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20";
 const labelClass = "block text-sm font-medium text-teal-900";
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
+  const lang = authLang(useSearchParams().get("lang"));
+  const t = AUTH[lang];
+  const q = lang === "th" ? "?lang=th" : "";
   const router = useRouter();
   const { updateUser } = useUser();
   const [error, setError] = useState<string | null>(null);
@@ -43,11 +55,11 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center bg-teal-50/60 px-6 py-10">
+    <main lang={lang} className="flex min-h-screen flex-col items-center bg-teal-50/60 px-6 py-10">
       <Link href="/" className="flex items-center gap-1">
         <Image
           src="/Thaimen1.png"
-          alt="Sabai mascot"
+          alt={t.mascotAlt}
           width={1380}
           height={1349}
           sizes="66px"
@@ -56,7 +68,7 @@ export default function LoginPage() {
         />
         <Image
           src="/sabaibiz-logo.png"
-          alt="SabaiBiz logo"
+          alt={t.logoAlt}
           width={2816}
           height={1536}
           sizes="300px"
@@ -67,13 +79,13 @@ export default function LoginPage() {
 
       <div className="mt-6 w-full max-w-md rounded-2xl border border-teal-100 bg-white p-8 shadow-card">
         <h1 className="text-center text-3xl font-bold tracking-tight text-teal-950">
-          Welcome back
+          {t.loginTitle}
         </h1>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-5">
           <div>
             <label htmlFor="email" className={labelClass}>
-              Email
+              {t.email}
             </label>
             <input
               id="email"
@@ -86,7 +98,7 @@ export default function LoginPage() {
           </div>
           <div>
             <label htmlFor="password" className={labelClass}>
-              Password
+              {t.password}
             </label>
             <input
               id="password"
@@ -109,26 +121,26 @@ export default function LoginPage() {
             disabled={submitting}
             className="w-full rounded-full bg-gold-500 px-8 py-4 text-lg font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400 disabled:cursor-wait disabled:opacity-60 disabled:hover:bg-gold-500"
           >
-            {submitting ? "Signing in…" : "Sign in"}
+            {submitting ? t.signingIn : t.signIn}
           </button>
         </form>
 
         <p className="mt-5 text-center text-sm">
           <Link
-            href="/forgot-password"
+            href={`/forgot-password${q}`}
             className="font-semibold text-teal-700 hover:text-teal-900"
           >
-            Forgot password?
+            {t.forgot}
           </Link>
         </p>
 
         <p className="mt-6 text-center text-sm text-teal-900/70">
-          Don&apos;t have an account yet?{" "}
+          {t.noAccount}{" "}
           <Link
-            href="/signup"
+            href={`/signup${q}`}
             className="font-semibold text-teal-700 hover:text-teal-900"
           >
-            Start free trial
+            {t.startFree}
           </Link>
         </p>
       </div>

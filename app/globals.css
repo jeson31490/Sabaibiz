@@ -1,35 +1,109 @@
 @import "tailwindcss";
 
-/* Sabai brand palette — teal (primary) + gold (accent) */
+/*
+  Sabai brand tokens. Every page uses these teal / gold / crimson ramps, so changing a value here
+  restyles the whole app.
+  - teal: the peacock teal of the logo (#0a646d at 700)
+  - gold: the soft gold of the logo (#c4a35a at 500)
+  - crimson: the red of the mascot's costume. Reserved for money going out and for warnings.
+  - paper: thermal receipt paper, used for the "ticket" (hero, Today card)
+*/
 @theme {
-  --color-teal-50: #edfaf8;
-  --color-teal-100: #d4f1ec;
-  --color-teal-200: #a9e3da;
-  --color-teal-300: #78d0c2;
-  --color-teal-400: #45b5a6;
-  --color-teal-500: #279488;
-  --color-teal-600: #1c766d;
-  --color-teal-700: #185e58;
-  --color-teal-800: #164b47;
-  --color-teal-900: #123b38;
-  --color-teal-950: #082220;
+  --font-sans: "Prompt", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
-  --color-gold-50: #fdf8ed;
-  --color-gold-100: #faeece;
-  --color-gold-200: #f3da9d;
-  --color-gold-300: #eac06c;
-  --color-gold-400: #dfa845;
-  --color-gold-500: #c6902f;
-  --color-gold-600: #a17324;
-  --color-gold-700: #7d591f;
-  --color-gold-800: #5f441c;
-  --color-gold-900: #4a361a;
+  --color-teal-50: #eef7f7;
+  --color-teal-100: #d6ecee;
+  --color-teal-200: #aedade;
+  --color-teal-300: #7ac0c7;
+  --color-teal-400: #3fa0aa;
+  --color-teal-500: #1a838e;
+  --color-teal-600: #0e7079;
+  --color-teal-700: #0a646d;
+  --color-teal-800: #0a525a;
+  --color-teal-900: #08414a;
+  --color-teal-950: #052e33;
 
-  --shadow-soft: 0 4px 24px -4px rgba(18, 59, 56, 0.08);
-  --shadow-card: 0 2px 12px -2px rgba(18, 59, 56, 0.1);
+  --color-gold-50: #fbf7ec;
+  --color-gold-100: #f5ecd2;
+  --color-gold-200: #ecdaa6;
+  --color-gold-300: #e0c47c;
+  --color-gold-400: #d1ae60;
+  --color-gold-500: #c4a35a;
+  --color-gold-600: #a38544;
+  --color-gold-700: #7f6733;
+  --color-gold-800: #5f4d28;
+  --color-gold-900: #463a21;
+
+  --color-crimson-50: #fdf1f0;
+  --color-crimson-100: #fbdcda;
+  --color-crimson-200: #f4b3b0;
+  --color-crimson-500: #c0383d;
+  --color-crimson-600: #9e2b2f;
+  --color-crimson-700: #7f2226;
+
+  --color-paper: #fbfaf6;
+
+  --shadow-soft: 0 6px 28px -6px rgba(5, 46, 51, 0.14);
+  --shadow-card: 0 2px 14px -3px rgba(5, 46, 51, 0.12);
+
+  --animate-print: print-out 1.5s cubic-bezier(0.22, 0.8, 0.3, 1) 0.25s both;
+
+  @keyframes print-out {
+    from {
+      clip-path: inset(0 0 100% 0);
+    }
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   background: #ffffff;
   color: var(--color-teal-950);
+  font-feature-settings: "tnum" 0;
+}
+
+/* Money and counts line up in columns. */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Thai stacks tone marks above and below the line: it needs more room than Latin. */
+:lang(th) h1,
+:lang(th) h2,
+:lang(th) h3 {
+  line-height: 1.35;
+}
+:lang(th) p,
+:lang(th) li {
+  line-height: 1.75;
+}
+
+h1,
+h2 {
+  text-wrap: balance;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-teal-600);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.01ms !important;
+  }
 }

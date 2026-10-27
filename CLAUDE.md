@@ -14,12 +14,18 @@ SabaiBiz is a SaaS web app for restaurant and shop owners in Thailand. It allows
 - Domain: sabaibiz.com
 
 ## Target users
-Restaurant and shop owners in Koh Samui, Thailand. The app is in English.
+Shop, cafe and restaurant owners across Thailand (starting in Koh Samui). The app is in English, Thai next.
 
 ## Pricing plans
-- Small Business: 490 baht/month (10 invoices/day, 1 manager)
-- Medium Business: 990 baht/month (25 invoices/day, voice AI, 3 managers)
-- Large Business: 1990 baht/month (unlimited invoices, voice AI, unlimited managers)
+Source of truth: `lib/plans.ts` (prices, monthly scan quotas, team seats). The plan of each business lives in
+`business_plans` (`supabase/18_plans_and_quotas.sql`); only the server / service role can change it.
+- Free: 0 baht, 10 invoice scans/month, no team accounts
+- Solo: 299 baht/month, 60 scans, 1 team account
+- Team: 690 baht/month, 150 scans, 3 team accounts (recommended)
+- Empire: 1990 baht/month, 400 scans, unlimited team accounts
+- Pay 6 months at once: -10%. Pay a year at once: -20%.
+- Invoices have at most 4 pages. Quotas are per calendar month (Bangkok time) and count every reading.
+- `PAYMENTS_ENABLED` in `lib/plans.ts` stays false until the payment provider is connected.
 
 ## Payment methods
 Credit card, PromptPay QR, TrueMoney Wallet, Google Pay
@@ -28,8 +34,9 @@ Credit card, PromptPay QR, TrueMoney Wallet, Google Pay
 Loyverse first, then Ocha and others
 
 ## Color palette
-- Primary: teal (#0f766e and variants)
-- Accent: gold (#b45309 and variants)
+- Primary: teal #0a646d (ramp in app/globals.css), from the logo
+- Accent: gold #c4a35a; crimson #9e2b2f only for money out / warnings
+- Font: Prompt (Thai + Latin). Landing: `/` English, `/th` Thai (copy in lib/landingCopy.ts)
 
 ## Current status
-Home page built and running locally. Next steps: pricing section, authentication, dashboard.
+Plans/quotas, new landing (EN/TH), mobile tab bar, CSV export, privacy/terms, PWA manifest done. Still to do: payment provider, Sentry, transactional emails, LINE/Ocha/Grab, per-dish margins.

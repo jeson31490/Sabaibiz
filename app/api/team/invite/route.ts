@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { fetchPlanUsage } from "../../../../lib/billing";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -161,6 +162,27 @@ export async function POST(request: Request) {
   if (email === owner.email?.toLowerCase()) return jsonError("You're already the owner of this business.", 400);
   // Managers always scan; for an employee the owner decides (default: allowed).
   const canScan = role === "manager" || body.canScan !== false;
+
+  // The plan decides how many team accounts the owner can have (pending invitations count).
+  const { plan } = await fetchPlanUsage(asOwner);
+  if (plan.teamSeats !== null) {
+    const { count, error: countError } = await asOwner
+      .from("team_members")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", owner.id);
+    if (countError) {
+      console.error("team/invite: couldn't count team members", countError.message);
+      return jsonError("We couldn't check your team size. Please try again.", 500);
+    }
+    if ((count ?? 0) >= plan.teamSeats) {
+      return jsonError(
+        plan.teamSeats === 0
+          ? `The ${plan.name} plan doesn't include team accounts. Upgrade your plan to invite your team.`
+          : `Your ${plan.name} plan includes ${plan.teamSeats} team ${plan.teamSeats === 1 ? "account" : "accounts"}. Upgrade your plan to invite more people.`,
+        402,
+      );
+    }
+  }
 
   const { data: invite, error: insertError } = await asOwner
     .from("team_members")
