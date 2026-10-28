@@ -42,11 +42,11 @@ const QA: { q: string; a: string }[] = [
   },
   {
     q: "How do I add my staff?",
-    a: "In Settings, open Team Access and invite them by e-mail. How many accounts you can add depends on your plan.",
+    a: "In Settings, open Team Access and invite them by e-mail. Employees are free but capped by plan (10 on Solo, 20 on Team, 50 on Tracker); managers come with the Team and Tracker plans.",
   },
   {
     q: "What are recipes and margins?",
-    a: "On the Empire plan, you list what goes into a dish and Sabai works out its cost from your latest invoice prices, then shows what you keep per sale.",
+    a: "On the Tracker plan, you list what goes into a dish and Sabai works out its cost from your latest invoice prices, then shows what you keep per sale.",
   },
   {
     q: "How do I delete my account or my data?",

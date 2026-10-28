@@ -47,10 +47,10 @@ export default function RecipesManager() {
     void load();
   }, [load]);
 
-  if (usage && !usage.degraded && usage.plan.id !== "empire") {
+  if (usage && !usage.degraded && usage.plan.id !== "tracker") {
     return (
       <div className="rounded-2xl border border-gold-500/40 bg-gold-50 p-6 text-sm text-gold-800">
-        <p className="font-semibold">Recipes and real margins are part of the Empire plan.</p>
+        <p className="font-semibold">Recipes and real margins are part of the Tracker plan.</p>
         <p className="mt-1">You are on the {usage.plan.name} plan.</p>
         <Link href="/dashboard/settings/subscription-plan" className="mt-3 inline-block font-semibold underline">
           See plans

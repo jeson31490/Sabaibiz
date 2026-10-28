@@ -11,6 +11,9 @@
 @theme {
   --font-sans: "Prompt", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
+  --font-display: "Bricolage Grotesque", "Prompt", ui-sans-serif, system-ui, sans-serif;
+  --font-plex: "IBM Plex Mono", "Prompt", ui-monospace, monospace;
+
   --color-teal-50: #eef7f7;
   --color-teal-100: #d6ecee;
   --color-teal-200: #aedade;

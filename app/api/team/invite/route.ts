@@ -163,25 +163,32 @@ export async function POST(request: Request) {
   // Managers always scan; for an employee the owner decides (default: allowed).
   const canScan = role === "manager" || body.canScan !== false;
 
-  // The plan decides how many team accounts the owner can have (pending invitations count).
+  // The plan decides how many managers and how many employees the owner can have (pending invitations count).
+  // Employees are free (they are not paid seats) but capped per plan; invitations need a paid plan.
   const { plan } = await fetchPlanUsage(asOwner);
-  if (plan.teamSeats !== null) {
-    const { count, error: countError } = await asOwner
-      .from("team_members")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", owner.id);
-    if (countError) {
-      console.error("team/invite: couldn't count team members", countError.message);
-      return jsonError("We couldn't check your team size. Please try again.", 500);
-    }
-    if ((count ?? 0) >= plan.teamSeats) {
-      return jsonError(
-        plan.teamSeats === 0
-          ? `The ${plan.name} plan doesn't include team accounts. Upgrade your plan to invite your team.`
-          : `Your ${plan.name} plan includes ${plan.teamSeats} team ${plan.teamSeats === 1 ? "account" : "accounts"}. Upgrade your plan to invite more people.`,
-        402,
-      );
-    }
+  if (plan.id === "free") {
+    return jsonError("Inviting your team is part of the paid plans. Upgrade to add your people.", 402);
+  }
+  const { data: roles, error: countError } = await asOwner.from("team_members").select("role").eq("user_id", owner.id);
+  if (countError) {
+    console.error("team/invite: couldn't count team members", countError.message);
+    return jsonError("We couldn't check your team size. Please try again.", 500);
+  }
+  const managers = (roles ?? []).filter((r) => r.role === "manager").length;
+  const employees = (roles ?? []).filter((r) => r.role === "employee").length;
+  if (role === "manager" && plan.managerSeats !== null && managers >= plan.managerSeats) {
+    return jsonError(
+      plan.managerSeats === 0
+        ? `The ${plan.name} plan doesn't include manager accounts. Upgrade to Team to add managers.`
+        : `Your ${plan.name} plan includes ${plan.managerSeats} manager ${plan.managerSeats === 1 ? "account" : "accounts"}. Upgrade your plan to add more.`,
+      402,
+    );
+  }
+  if (role === "employee" && employees >= plan.employeeCap) {
+    return jsonError(
+      `Your ${plan.name} plan includes up to ${plan.employeeCap} employees (free, they don't count as paid seats). Remove someone or upgrade your plan to add more.`,
+      402,
+    );
   }
 
   const { data: invite, error: insertError } = await asOwner

@@ -19,10 +19,12 @@ Shop, cafe and restaurant owners across Thailand (starting in Koh Samui). The ap
 ## Pricing plans
 Source of truth: `lib/plans.ts` (prices, monthly scan quotas, team seats). The plan of each business lives in
 `business_plans` (`supabase/18_plans_and_quotas.sql`); only the server / service role can change it.
-- Free: 0 baht, 10 invoice scans/month, no team accounts
-- Solo: 299 baht/month, 60 scans, 1 team account
-- Team: 690 baht/month, 150 scans, 3 team accounts (recommended)
-- Empire: 1990 baht/month, 400 scans, unlimited team accounts
+- Free: 0 baht, no Sabai scans (manual entry + your own Anthropic key only), no invites
+- Solo: 149 baht/month, 15 Sabai scans, up to 10 employees, no managers
+- Team: 249 baht/month, 25 scans, up to 20 employees, owner + 2 managers (recommended)
+- Tracker: 499 baht/month, 50 scans, up to 50 employees, unlimited managers
+- Own Anthropic key (Settings -> AI key): unlimited scans on every plan (daily safety cap), stored encrypted in business_ai_keys
+- Employees are free (not paid seats); yearly -20%
 - Pay 6 months at once: -10%. Pay a year at once: -20%.
 - Invoices have at most 4 pages. Quotas are per calendar month (Bangkok time) and count every reading.
 - `PAYMENTS_ENABLED` in `lib/plans.ts` stays false until the payment provider is connected.
