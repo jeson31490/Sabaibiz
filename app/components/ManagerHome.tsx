@@ -13,6 +13,7 @@ import {
 } from "../../lib/attendance";
 import { bangkokToday, fetchInvoicesScannedToday, type InvoiceRow } from "../../lib/invoices";
 import { fetchTeamNames } from "../../lib/teamNames";
+import DailySalesForm from "./DailySalesForm";
 import { useLiveReload } from "../../lib/useLiveReload";
 import { useNotifications } from "../../lib/useNotifications";
 
@@ -48,6 +49,8 @@ async function loadData(): Promise<Data> {
 
 export default function ManagerHome() {
   const [load, setLoad] = useState<Load>({ status: "loading" });
+  const [showTakings, setShowTakings] = useState(false);
+  const [savedTakings, setSavedTakings] = useState(false);
   const { unread } = useNotifications(true);
 
   const refresh = useCallback(() => {
@@ -90,6 +93,23 @@ export default function ManagerHome() {
         </Link>
       </div>
 
+      <button
+        type="button"
+        onClick={() => setShowTakings(true)}
+        className="mt-6 flex w-full items-center justify-between gap-4 rounded-2xl border border-gold-500/50 bg-white px-5 py-4 text-left transition hover:bg-teal-50"
+      >
+        <span>
+          <span className="block font-semibold text-teal-950">Enter the day&apos;s takings</span>
+          <span className="block text-sm text-teal-900/65">
+            {savedTakings ? "Saved. Thank you." : "Type the total, or photograph the till's end-of-day receipt."}
+          </span>
+        </span>
+        <span aria-hidden className="font-semibold text-gold-500">
+          Open →
+        </span>
+      </button>
+      {showTakings && <DailySalesForm onClose={() => setShowTakings(false)} onSaved={() => setSavedTakings(true)} />}
+
       {unread > 0 && (
         <Link
           href="/dashboard/team"
@@ -116,7 +136,7 @@ export default function ManagerHome() {
 
       {load.status === "ready" && (
         <>
-          <section className="mt-8 rounded-2xl border border-teal-100 bg-white shadow-card">
+          <section className="mt-6 rounded-2xl border border-teal-100 bg-white shadow-card">
             <div className="flex items-center justify-between gap-4 px-6 pt-6">
               <h2 className="text-lg font-semibold text-teal-950">
                 Scanned today <span className="font-normal text-teal-900/55">({load.invoices.length})</span>

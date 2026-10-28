@@ -22,6 +22,7 @@ import { inputClass, labelClass } from "./FormField";
 import PriceAlertsCard from "./PriceAlertsCard";
 import AppHub, { type HubOutput, type HubSource } from "./AppHub";
 import SabaiMark from "./landing/SabaiMark";
+import DailySalesForm from "./DailySalesForm";
 
 type State =
   | { status: "loading" }
@@ -51,7 +52,7 @@ type Costs = { total: number; count: number };
 function revenueCard(sales: Loadable<PeriodSales>, period: ResolvedPeriod): { value: string; note: string } {
   if (sales === "loading") return { value: "…", note: "Loading" };
   if (sales === "error") return { value: "—", note: "Sales are unavailable right now" };
-  if (!sales.connected) return { value: "—", note: "Connect Loyverse in Settings to see your sales" };
+  if (!sales.connected) return { value: "—", note: "Enter your daily takings, or connect Loyverse" };
   if (!sales.synced) return { value: "—", note: "Importing your till sales… this can take a minute." };
 
   let comparison = `nothing to compare ${period.comparisonLabel}`;
@@ -67,7 +68,7 @@ function revenueCard(sales: Loadable<PeriodSales>, period: ResolvedPeriod): { va
 function resultCard(sales: Loadable<PeriodSales>, costs: Loadable<Costs>): { value: string; note: string } {
   if (sales === "loading" || costs === "loading") return { value: "…", note: "Loading" };
   if (costs === "error" || sales === "error" || !sales.connected || !sales.synced) {
-    return { value: "—", note: "Needs your Loyverse sales for this period" };
+    return { value: "—", note: "Needs your sales for this period" };
   }
   return { value: fmtBaht(Math.round((sales.revenue - costs.total) * 100) / 100), note: "Revenue − invoice costs" };
 }
@@ -165,12 +166,15 @@ export default function DashboardContent() {
   // stays open and each time you come back to the tab. "refresh" re-reads the figures after an import.
   const [refresh, setRefresh] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const [hasLoyverse, setHasLoyverse] = useState(false);
+  const [showTakings, setShowTakings] = useState(false);
   const syncBusy = useRef(false);
   const autoSync = useCallback(async () => {
     if (syncBusy.current) return;
     syncBusy.current = true;
     try {
       const status = await fetchLoyverseStatus();
+      setHasLoyverse(!!status);
       if (!status) return;
       const last = status.lastSyncedAt ? new Date(status.lastSyncedAt).getTime() : 0;
       if (Date.now() - last < AUTO_SYNC_MIN_AGE_MS) return;
@@ -277,7 +281,6 @@ export default function DashboardContent() {
 
   const periodLabel = periodId === "custom" ? "Selected period" : PERIODS.find((p) => p.id === periodId)!.label;
   const topAlert = ready?.alerts[0];
-  const salesOn = sales !== "loading" && sales !== "error" && sales.connected;
   const hubSources: HubSource[] = [
     {
       id: "invoice",
@@ -289,14 +292,20 @@ export default function DashboardContent() {
     {
       id: "till",
       title: "Loyverse till",
-      sub: syncing ? "Syncing…" : salesOn ? "Connected · auto-sync" : "Not connected",
-      detail: salesOn
+      sub: syncing ? "Syncing…" : hasLoyverse ? "Connected · auto-sync" : "Not connected",
+      detail: hasLoyverse
         ? "Your till sales land here by themselves, ticket by ticket. No need to sync by hand."
-        : "Connect your till to see revenue and your real result for the day.",
-      cta: { label: salesOn ? "Open settings" : "Connect Loyverse", href: "/dashboard/settings/pos-connection" },
+        : "Using Loyverse? Connect it and your sales arrive by themselves.",
+      cta: { label: hasLoyverse ? "Open settings" : "Connect Loyverse", href: "/dashboard/settings/pos-connection" },
     },
-    { id: "grab", title: "Grab orders", sub: "Coming soon", detail: "Grab orders will flow in with the rest of your takings.", soon: true },
-    { id: "line", title: "LINE · Ocha", sub: "Coming soon", detail: "Get your daily number on LINE, where you already chat.", soon: true },
+    {
+      id: "takings",
+      title: "Daily takings",
+      sub: "Type it or take a photo",
+      detail: "Another till, or none? Type the day's total, or photograph the till's end-of-day receipt: Sabai reads the total for you to check.",
+      cta: { label: "Enter the day's takings", onClick: () => setShowTakings(true) },
+    },
+    { id: "grab", title: "Grab · LINE · Ocha", sub: "Coming soon", detail: "Grab orders, LINE and Ocha will flow in with the rest of your takings.", soon: true },
   ];
   const hubOutputs: HubOutput[] = [
     { label: "Revenue", value: kpis[0].value, sub: kpis[0].note, tone: "teal" },
@@ -335,6 +344,16 @@ export default function DashboardContent() {
               </p>
             )}
           </div>
+        </div>
+
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowTakings(true)}
+            className="inline-flex items-center gap-2 rounded-full border border-gold-500/60 px-5 py-2 text-sm font-semibold text-gold-500 transition hover:bg-gold-500/10"
+          >
+            + Enter the day&apos;s takings
+          </button>
         </div>
 
         <section aria-label="Period">
@@ -480,6 +499,8 @@ export default function DashboardContent() {
           </div>
         </section>
       </main>
+
+      {showTakings && <DailySalesForm onClose={() => setShowTakings(false)} onSaved={() => setRefresh((n) => n + 1)} />}
 
       {/* Floating action button */}
       <Link
