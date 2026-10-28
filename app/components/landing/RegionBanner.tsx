@@ -22,8 +22,21 @@ export default function RegionBanner({ lang }: { lang: Lang }) {
         if (!off) setDismissed(false);
       }
     });
+    // Whoever picks a language by hand has answered the question: never suggest again.
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as Element | null)?.closest?.("a[hreflang]");
+      if (!a) return;
+      setDismissed(true);
+      try {
+        localStorage.setItem(DISMISS_KEY, "1");
+      } catch {
+        /* ignore */
+      }
+    };
+    document.addEventListener("click", onClick);
     return () => {
       off = true;
+      document.removeEventListener("click", onClick);
     };
   }, []);
 
@@ -32,9 +45,9 @@ export default function RegionBanner({ lang }: { lang: Lang }) {
   if (!suggested || suggested === lang || !words || dismissed) return null;
 
   return (
-    <div className="flex items-center justify-center gap-3 bg-[#19D3B5] px-4 py-2 text-center text-sm font-medium text-[#031B1C]">
-      <span>{words.text}</span>
-      <Link href={LANG_PATH[suggested]} hrefLang={suggested} className="rounded-full bg-[#031B1C] px-3 py-1 text-xs font-bold text-[#F4EBD8] hover:brightness-125">
+    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 bg-[#19D3B5] px-4 py-2 text-center text-sm font-medium text-[#031B1C]">
+      <span className="basis-full sm:basis-auto">{words.text}</span>
+      <Link href={LANG_PATH[suggested]} hrefLang={suggested} className="whitespace-nowrap rounded-full bg-[#031B1C] px-3 py-1 text-xs font-bold text-[#F4EBD8] hover:brightness-125">
         {words.cta}
       </Link>
       <button
