@@ -8,12 +8,11 @@ export type L2 = {
   announce: string;
   hero: { eyebrow: string; lines: [string, string, string]; sub: string; cta: string; cta2: string; note: string };
   hub: { invoice: string; till: string; grab: string; line: string; today: string; alert: string; margin: string; archive: string; alertV: string; marginV: string };
-  stats: { n: string; l: string }[];
   suite: { title: string; intro: string; live: string; soon: string; items: { t: string; d: string; soon?: boolean }[] };
   tabs: { label: string; title: string; text: string; badge?: string; bullets: string[] }[];
-  why: { title: string; no: string[]; yes: string[] };
+  why: { title: string; items: { t: string; d: string }[] };
   byo: { badge: string; title: string; text: string; steps: string[]; card: string; cardNote: string };
-  connector: { badge: string; title: string; text: string; ask: string; answer: string };
+  connector: { badge: string; title: string; text: string; ask: string; answer: string; works: string; logos: string[] };
   pricing: { title: string; intro: string; monthly: string; yearly: string; save: string; perMonth: string; popular: string; soon: string; newTag: string; cta: string; pay: string; yearlyNote: string };
   security: { title: string; items: { n: string; t: string; d: string }[] };
   final: { title: string; text: string; cta: string };
@@ -24,7 +23,7 @@ export type L2 = {
 const en: L2 = {
   htmlLang: "en",
   meta: {
-    title: "Sabai: easy accounting for small business in Thailand",
+    title: "SabaiBiz: easy accounting for small business in Thailand",
     description: "Photograph invoices, connect your till, see one clear number for the day. Simple accounting for any small business in Thailand. Free to start.",
   },
   nav: { how: "What it does", pricing: "Pricing", security: "Security", signIn: "Sign in", start: "Start free" },
@@ -32,18 +31,12 @@ const en: L2 = {
   hero: {
     eyebrow: "EASY ACCOUNTING FOR SMALL BUSINESS",
     lines: ["Snap the invoice.", "Know your day.", "Keep your margin."],
-    sub: "Sabai reads your supplier invoices, adds your till sales and shows one clear number for the day. For any shop, café or small business in Thailand.",
+    sub: "SabaiBiz reads your supplier invoices, adds your till sales and shows one clear number for the day. For any shop, café or small business in Thailand.",
     cta: "Start free",
     cta2: "See how it works",
     note: "No card needed. Free forever with your own AI key.",
   },
-  hub: { invoice: "Invoice photo", till: "Loyverse till", grab: "Grab orders", line: "LINE · Ocha", today: "TODAY", alert: "Price alerts", margin: "Margin per product", archive: "Archive · CSV", alertV: "Eggs ▲ 9%", marginV: "Iced latte 68%" },
-  stats: [
-    { n: "12/12", l: "prices read right on a real Makro invoice" },
-    { n: "27 s", l: "from photo to checked lines" },
-    { n: "0", l: "bank connections needed" },
-    { n: "฿0", l: "to start with your own AI key" },
-  ],
+  hub: { invoice: "Invoice photo", till: "Loyverse till", grab: "Grab orders", line: "LINE · Ocha", today: "TODAY", alert: "Price alerts", margin: "Margin per product", archive: "Archive · CSV", alertV: "Olive oil ▲ 9%", marginV: "Linen shirt 68%" },
   suite: {
     title: "All in one, in your pocket",
     intro: "Everything that touches your money, in one place you can open from your phone.",
@@ -54,8 +47,8 @@ const en: L2 = {
       { t: "Price tracking", d: "See when a supplier raises a price, and by how much." },
       { t: "Margin per product", d: "Real margin from the purchase price read on your invoices." },
       { t: "Daily takings", d: "Your till sales from Loyverse next to what you spent." },
-      { t: "Team & clock-in", d: "Invite staff to clock in. Free for them, you stay in control." },
-      { t: "Payroll sheet", d: "Thai social security and tax worked out for you, as information.", soon: true },
+      { t: "Team & attendance", d: "Check arrival times and absences, and keep a full history." },
+      { t: "Payroll", d: "Thai social security and income tax calculated, payslips ready to print or share." },
     ],
   },
   tabs: [
@@ -65,9 +58,15 @@ const en: L2 = {
     { label: "Team", title: "Your staff clock in, you stay in charge", text: "Invite your people by e-mail. They clock in, see their days off. Remove access in one tap, history is kept.", bullets: ["Employees are free", "Managers on Team and Tracker", "You decide who sees invoices"] },
   ],
   why: {
-    title: "Why Sabai",
-    no: ["Piles of paper invoices", "Prices you find out about too late", "Software made for accountants", "Hours of typing each month"],
-    yes: ["A photo is enough", "An alert when a price moves", "Made for the owner, not the accountant", "Your day in one number"],
+    title: "Why SabaiBiz",
+    items: [
+      { t: "A photo is all it takes", d: "No typing. Snap the invoice at the door and the lines fill themselves." },
+      { t: "Prices never surprise you", d: "Every product keeps its price history, with an alert when a supplier raises it." },
+      { t: "Your real margin, per product", d: "Margins follow the purchase prices read from your invoices, not a guess." },
+      { t: "Made for the owner, not the accountant", d: "Plain words and big numbers. No accounting course needed." },
+      { t: "Your team, under control", d: "Attendance, absences and payslips in one place. Employees are free." },
+      { t: "Yours to keep", d: "Export everything to CSV. No ads, and your data is never sold." },
+    ],
   },
   byo: {
     badge: "FREE PLAN",
@@ -79,10 +78,12 @@ const en: L2 = {
   },
   connector: {
     badge: "COMING SOON",
-    title: "Ask your accounting, in plain words",
-    text: "Soon you will be able to ask Sabai from your AI assistant, in your own language.",
+    title: "Your accounting is an AI you can talk to",
+    text: "Ask in plain words and get a quick answer. Soon, straight from the AI assistant you already use.",
     ask: "How much did I spend on milk this month?",
     answer: "4,860 ฿ across 6 invoices. Price up 6% since September.",
+    works: "Works with",
+    logos: ["Claude", "ChatGPT", "Gemini"],
   },
   pricing: {
     title: "Simple prices, in baht",
@@ -103,10 +104,10 @@ const en: L2 = {
     items: [
       { n: "3", t: "Roles", d: "Owner, manager, employee. Each sees only what you allow." },
       { n: "0", t: "Data resale", d: "No ads and your data is never sold." },
-      { n: "1", t: "Tap to remove", d: "Take away anyone's access instantly. History is kept." },
+      { n: "CSV", t: "Export anytime", d: "Take all your invoices with you in a spreadsheet whenever you like." },
     ],
   },
-  final: { title: "Stop guessing. Know your day.", text: "Free to start. Your first invoice takes less than a minute.", cta: "Start free" },
+  final: { title: "Your accounting, finally simple.", text: "Free to start. Your first invoice takes less than a minute.", cta: "Start free" },
   footer: { rights: "All rights reserved.", faq: "FAQ", privacy: "Privacy", terms: "Terms" },
   langs: "Language",
 };
@@ -114,7 +115,7 @@ const en: L2 = {
 const th: L2 = {
   htmlLang: "th",
   meta: {
-    title: "Sabai: บัญชีง่ายๆ สำหรับธุรกิจขนาดเล็กในไทย",
+    title: "SabaiBiz: บัญชีง่ายๆ สำหรับธุรกิจขนาดเล็กในไทย",
     description: "ถ่ายรูปใบแจ้งหนี้ เชื่อมระบบขาย แล้วเห็นตัวเลขของวันเดียวชัดๆ บัญชีง่ายๆ สำหรับทุกธุรกิจเล็กในไทย เริ่มฟรี",
   },
   nav: { how: "ทำอะไรได้บ้าง", pricing: "ราคา", security: "ความปลอดภัย", signIn: "เข้าสู่ระบบ", start: "เริ่มฟรี" },
@@ -122,18 +123,12 @@ const th: L2 = {
   hero: {
     eyebrow: "บัญชีง่ายๆ สำหรับธุรกิจขนาดเล็ก",
     lines: ["ถ่ายรูปใบแจ้งหนี้", "รู้ยอดของวัน", "รักษากำไรไว้"],
-    sub: "Sabai อ่านใบแจ้งหนี้ซัพพลายเออร์ รวมยอดขายจากเครื่องขาย และแสดงตัวเลขเดียวที่ชัดเจนของวัน สำหรับร้านค้า คาเฟ่ หรือธุรกิจเล็กทุกประเภทในไทย",
+    sub: "SabaiBiz อ่านใบแจ้งหนี้ซัพพลายเออร์ รวมยอดขายจากเครื่องขาย และแสดงตัวเลขเดียวที่ชัดเจนของวัน สำหรับร้านค้า คาเฟ่ หรือธุรกิจเล็กทุกประเภทในไทย",
     cta: "เริ่มฟรี",
     cta2: "ดูวิธีใช้งาน",
     note: "ไม่ต้องใช้บัตร ใช้ฟรีตลอดด้วยคีย์ AI ของคุณเอง",
   },
-  hub: { invoice: "รูปใบแจ้งหนี้", till: "เครื่องขาย Loyverse", grab: "ออเดอร์ Grab", line: "LINE · Ocha", today: "วันนี้", alert: "แจ้งเตือนราคา", margin: "กำไรต่อสินค้า", archive: "คลัง · CSV", alertV: "ไข่ ▲ 9%", marginV: "ลาเต้เย็น 68%" },
-  stats: [
-    { n: "12/12", l: "ราคาถูกต้องจากใบแจ้งหนี้แม็คโครจริง" },
-    { n: "27 วิ", l: "จากรูปถึงรายการพร้อมตรวจ" },
-    { n: "0", l: "ไม่ต้องเชื่อมบัญชีธนาคาร" },
-    { n: "฿0", l: "เริ่มต้นด้วยคีย์ AI ของคุณเอง" },
-  ],
+  hub: { invoice: "รูปใบแจ้งหนี้", till: "เครื่องขาย Loyverse", grab: "ออเดอร์ Grab", line: "LINE · Ocha", today: "วันนี้", alert: "แจ้งเตือนราคา", margin: "กำไรต่อสินค้า", archive: "คลัง · CSV", alertV: "น้ำมันมะกอก ▲ 9%", marginV: "เสื้อลินิน 68%" },
   suite: {
     title: "ครบในที่เดียว ในกระเป๋าคุณ",
     intro: "ทุกอย่างที่เกี่ยวกับเงินของคุณ อยู่ในที่เดียวและเปิดดูจากมือถือได้",
@@ -144,8 +139,8 @@ const th: L2 = {
       { t: "ติดตามราคา", d: "เห็นเมื่อซัพพลายเออร์ขึ้นราคา และขึ้นเท่าไร" },
       { t: "กำไรต่อสินค้า", d: "กำไรจริงจากราคาซื้อที่อ่านจากใบแจ้งหนี้" },
       { t: "ยอดขายรายวัน", d: "ยอดขายจาก Loyverse เทียบกับที่จ่ายไป" },
-      { t: "ทีมและลงเวลา", d: "เชิญพนักงานลงเวลา ฟรีสำหรับพวกเขา คุณควบคุมได้" },
-      { t: "สลิปเงินเดือน", d: "คำนวณประกันสังคมและภาษีให้ เพื่อเป็นข้อมูล", soon: true },
+      { t: "ทีมและเวลาเข้างาน", d: "ตรวจเวลาเข้างานและการขาดงาน พร้อมเก็บประวัติครบ" },
+      { t: "สลิปเงินเดือน", d: "คำนวณประกันสังคมและภาษีเงินได้ พร้อมสลิปสำหรับพิมพ์หรือแชร์" },
     ],
   },
   tabs: [
@@ -155,9 +150,15 @@ const th: L2 = {
     { label: "ทีม", title: "พนักงานลงเวลา คุณคุมได้", text: "เชิญทีมทางอีเมล พวกเขาลงเวลาและดูวันลาได้ ยกเลิกสิทธิ์ได้ในแตะเดียว ประวัติยังอยู่", bullets: ["พนักงานใช้ฟรี", "ผู้จัดการในแพ็กเกจ Team และ Tracker", "คุณเลือกว่าใครเห็นใบแจ้งหนี้"] },
   ],
   why: {
-    title: "ทำไมต้อง Sabai",
-    no: ["กองใบแจ้งหนี้กระดาษ", "รู้ราคาขึ้นช้าเกินไป", "ซอฟต์แวร์สำหรับนักบัญชี", "นั่งพิมพ์หลายชั่วโมงทุกเดือน"],
-    yes: ["แค่ถ่ายรูป", "แจ้งเตือนเมื่อราคาเปลี่ยน", "ทำมาให้เจ้าของร้าน", "ทั้งวันในตัวเลขเดียว"],
+    title: "ทำไมต้อง SabaiBiz",
+    items: [
+      { t: "แค่ถ่ายรูปก็พอ", d: "ไม่ต้องพิมพ์ ถ่ายใบแจ้งหนี้ที่หน้าร้าน รายการจะกรอกให้เอง" },
+      { t: "ราคาไม่เซอร์ไพรส์คุณอีก", d: "สินค้าทุกชิ้นเก็บประวัติราคา และแจ้งเตือนเมื่อซัพพลายเออร์ขึ้นราคา" },
+      { t: "กำไรจริงต่อสินค้า", d: "กำไรคำนวณจากราคาซื้อที่อ่านจากใบแจ้งหนี้ ไม่ใช่การเดา" },
+      { t: "ทำมาเพื่อเจ้าของ ไม่ใช่นักบัญชี", d: "ภาษาง่ายๆ ตัวเลขใหญ่ๆ ไม่ต้องเรียนบัญชี" },
+      { t: "ทีมของคุณอยู่ในการควบคุม", d: "เวลาเข้างาน การขาดงาน และสลิปเงินเดือนในที่เดียว พนักงานใช้ฟรี" },
+      { t: "เป็นของคุณเสมอ", d: "ส่งออกทุกอย่างเป็น CSV ไม่มีโฆษณา และไม่ขายข้อมูลของคุณ" },
+    ],
   },
   byo: {
     badge: "แพ็กเกจฟรี",
@@ -169,10 +170,12 @@ const th: L2 = {
   },
   connector: {
     badge: "เร็วๆ นี้",
-    title: "ถามบัญชีของคุณด้วยภาษาง่ายๆ",
-    text: "เร็วๆ นี้คุณจะถาม Sabai ผ่านผู้ช่วย AI ของคุณเองได้ เป็นภาษาของคุณ",
+    title: "บัญชีของคุณคือ AI ที่คุยด้วยได้",
+    text: "ถามด้วยภาษาง่ายๆ แล้วได้คำตอบเร็ว เร็วๆ นี้ผ่านผู้ช่วย AI ที่คุณใช้อยู่แล้ว",
     ask: "เดือนนี้ซื้อนมไปเท่าไร",
     answer: "4,860 บาท จาก 6 ใบ ราคาขึ้น 6% จากเดือนกันยายน",
+    works: "ใช้งานร่วมกับ",
+    logos: ["Claude", "ChatGPT", "Gemini"],
   },
   pricing: {
     title: "ราคาง่ายๆ เป็นบาท",
@@ -193,10 +196,10 @@ const th: L2 = {
     items: [
       { n: "3", t: "บทบาท", d: "เจ้าของ ผู้จัดการ พนักงาน แต่ละคนเห็นเท่าที่คุณอนุญาต" },
       { n: "0", t: "ขายข้อมูล", d: "ไม่มีโฆษณา และไม่ขายข้อมูลของคุณ" },
-      { n: "1", t: "แตะเพื่อยกเลิกสิทธิ์", d: "ตัดสิทธิ์ใครก็ได้ทันที ประวัติยังอยู่" },
+      { n: "CSV", t: "ส่งออกได้ทุกเมื่อ", d: "นำใบแจ้งหนี้ทั้งหมดไปเป็นสเปรดชีตได้ทุกเมื่อที่ต้องการ" },
     ],
   },
-  final: { title: "เลิกเดา รู้ยอดของวัน", text: "เริ่มฟรี ใบแรกใช้เวลาไม่ถึงนาที", cta: "เริ่มฟรี" },
+  final: { title: "บัญชีของคุณ ง่ายขึ้นเสียที", text: "เริ่มฟรี ใบแรกใช้เวลาไม่ถึงนาที", cta: "เริ่มฟรี" },
   footer: { rights: "สงวนลิขสิทธิ์", faq: "คำถามที่พบบ่อย", privacy: "ความเป็นส่วนตัว", terms: "ข้อกำหนด" },
   langs: "ภาษา",
 };
@@ -204,7 +207,7 @@ const th: L2 = {
 const fr: L2 = {
   htmlLang: "fr",
   meta: {
-    title: "Sabai : la compta facile pour les petits commerces en Thaïlande",
+    title: "SabaiBiz : la compta facile pour les petits commerces en Thaïlande",
     description: "Photographiez vos factures, connectez votre caisse, voyez un seul chiffre clair pour la journée. Gratuit pour commencer.",
   },
   nav: { how: "Ce que ça fait", pricing: "Tarifs", security: "Sécurité", signIn: "Connexion", start: "Commencer gratuitement" },
@@ -212,18 +215,12 @@ const fr: L2 = {
   hero: {
     eyebrow: "LA COMPTA FACILE POUR PETITS COMMERCES",
     lines: ["Photographiez la facture.", "Connaissez votre journée.", "Gardez votre marge."],
-    sub: "Sabai lit vos factures fournisseurs, ajoute les ventes de votre caisse et affiche un seul chiffre clair pour la journée. Pour toute boutique, tout café ou petite entreprise en Thaïlande.",
+    sub: "SabaiBiz lit vos factures fournisseurs, ajoute les ventes de votre caisse et affiche un seul chiffre clair pour la journée. Pour toute boutique, tout café ou petite entreprise en Thaïlande.",
     cta: "Commencer gratuitement",
     cta2: "Voir comment ça marche",
     note: "Sans carte. Gratuit à vie avec votre propre clé IA.",
   },
-  hub: { invoice: "Photo de facture", till: "Caisse Loyverse", grab: "Commandes Grab", line: "LINE · Ocha", today: "AUJOURD'HUI", alert: "Alertes de prix", margin: "Marge par produit", archive: "Archive · CSV", alertV: "Œufs ▲ 9 %", marginV: "Latte glacé 68 %" },
-  stats: [
-    { n: "12/12", l: "prix lus correctement sur une vraie facture Makro" },
-    { n: "27 s", l: "de la photo aux lignes vérifiées" },
-    { n: "0", l: "connexion bancaire nécessaire" },
-    { n: "0 ฿", l: "pour démarrer avec votre clé IA" },
-  ],
+  hub: { invoice: "Photo de facture", till: "Caisse Loyverse", grab: "Commandes Grab", line: "LINE · Ocha", today: "AUJOURD'HUI", alert: "Alertes de prix", margin: "Marge par produit", archive: "Archive · CSV", alertV: "Huile d'olive ▲ 9 %", marginV: "Chemise en lin 68 %" },
   suite: {
     title: "Tout-en-un, dans votre poche",
     intro: "Tout ce qui touche à votre argent, au même endroit, depuis votre téléphone.",
@@ -234,8 +231,8 @@ const fr: L2 = {
       { t: "Suivi des prix", d: "Voyez quand un fournisseur augmente un prix, et de combien." },
       { t: "Marge par produit", d: "Marge réelle d'après le prix d'achat lu sur vos factures." },
       { t: "Recette du jour", d: "Les ventes de votre caisse Loyverse à côté de vos dépenses." },
-      { t: "Équipe et pointage", d: "Invitez vos employés à pointer. Gratuit pour eux, vous gardez la main." },
-      { t: "Fiche de paie", d: "Sécurité sociale et impôt thaïlandais calculés, à titre d'information.", soon: true },
+      { t: "Équipe et présence", d: "Contrôlez les heures d'arrivée et les absences, avec un historique complet." },
+      { t: "Fiche de paie", d: "Sécurité sociale et impôt thaïlandais calculés, fiches de paie prêtes à imprimer ou partager." },
     ],
   },
   tabs: [
@@ -245,9 +242,15 @@ const fr: L2 = {
     { label: "Équipe", title: "Vos employés pointent, vous gardez la main", text: "Invitez-les par e-mail. Ils pointent et voient leurs jours d'absence. Retirez l'accès d'un geste, l'historique reste.", bullets: ["Employés gratuits", "Managers dans Team et Tracker", "Vous choisissez qui voit les factures"] },
   ],
   why: {
-    title: "Pourquoi Sabai",
-    no: ["Des piles de factures papier", "Des hausses de prix découvertes trop tard", "Un logiciel pensé pour les comptables", "Des heures de saisie chaque mois"],
-    yes: ["Une photo suffit", "Une alerte quand un prix bouge", "Pensé pour le patron, pas le comptable", "Votre journée en un chiffre"],
+    title: "Pourquoi SabaiBiz",
+    items: [
+      { t: "Une photo suffit", d: "Zéro saisie. Photographiez la facture à la livraison, les lignes se remplissent seules." },
+      { t: "Les prix ne vous surprennent plus", d: "Chaque produit garde son historique de prix, avec une alerte quand un fournisseur augmente." },
+      { t: "Votre vraie marge, par produit", d: "La marge suit les prix d'achat lus sur vos factures, pas une estimation." },
+      { t: "Pensé pour le patron, pas le comptable", d: "Des mots simples et de gros chiffres. Aucune formation comptable." },
+      { t: "Votre équipe sous contrôle", d: "Présence, absences et fiches de paie au même endroit. Employés gratuits." },
+      { t: "Vos données restent à vous", d: "Exportez tout en CSV. Pas de pub, et vos données ne sont jamais vendues." },
+    ],
   },
   byo: {
     badge: "FORFAIT GRATUIT",
@@ -259,10 +262,12 @@ const fr: L2 = {
   },
   connector: {
     badge: "BIENTÔT",
-    title: "Interrogez votre compta, avec des mots simples",
-    text: "Bientôt, vous pourrez interroger Sabai depuis votre assistant IA, dans votre langue.",
+    title: "Votre compta est une IA à qui vous pouvez parler",
+    text: "Posez vos questions avec des mots simples, obtenez une réponse rapide. Bientôt, directement depuis l'assistant IA que vous utilisez déjà.",
     ask: "Combien j'ai dépensé en lait ce mois-ci ?",
     answer: "4 860 ฿ sur 6 factures. Prix en hausse de 6 % depuis septembre.",
+    works: "Compatible avec",
+    logos: ["Claude", "ChatGPT", "Gemini"],
   },
   pricing: {
     title: "Des prix simples, en bahts",
@@ -283,10 +288,10 @@ const fr: L2 = {
     items: [
       { n: "3", t: "Rôles", d: "Propriétaire, manager, employé. Chacun ne voit que ce que vous autorisez." },
       { n: "0", t: "Revente de données", d: "Pas de pub, et vos données ne sont jamais vendues." },
-      { n: "1", t: "Geste pour retirer", d: "Retirez l'accès de quelqu'un immédiatement. L'historique est conservé." },
+      { n: "CSV", t: "Export à tout moment", d: "Repartez avec toutes vos factures dans un tableur quand vous le souhaitez." },
     ],
   },
-  final: { title: "Arrêtez de deviner. Connaissez votre journée.", text: "Gratuit pour commencer. Votre première facture prend moins d'une minute.", cta: "Commencer gratuitement" },
+  final: { title: "Votre compta, enfin simple.", text: "Gratuit pour commencer. Votre première facture prend moins d'une minute.", cta: "Commencer gratuitement" },
   footer: { rights: "Tous droits réservés.", faq: "FAQ", privacy: "Confidentialité", terms: "Conditions" },
   langs: "Langue",
 };
@@ -294,7 +299,7 @@ const fr: L2 = {
 const ru: L2 = {
   htmlLang: "ru",
   meta: {
-    title: "Sabai: простая бухгалтерия для малого бизнеса в Таиланде",
+    title: "SabaiBiz: простая бухгалтерия для малого бизнеса в Таиланде",
     description: "Сфотографируйте счета, подключите кассу и увидьте одну понятную цифру за день. Бесплатно для старта.",
   },
   nav: { how: "Что умеет", pricing: "Тарифы", security: "Безопасность", signIn: "Войти", start: "Начать бесплатно" },
@@ -302,18 +307,12 @@ const ru: L2 = {
   hero: {
     eyebrow: "ПРОСТАЯ БУХГАЛТЕРИЯ ДЛЯ МАЛОГО БИЗНЕСА",
     lines: ["Сфотографируйте счёт.", "Узнайте свой день.", "Сохраните маржу."],
-    sub: "Sabai читает счета поставщиков, добавляет продажи с кассы и показывает одну понятную цифру за день. Для любого магазина, кафе или малого бизнеса в Таиланде.",
+    sub: "SabaiBiz читает счета поставщиков, добавляет продажи с кассы и показывает одну понятную цифру за день. Для любого магазина, кафе или малого бизнеса в Таиланде.",
     cta: "Начать бесплатно",
     cta2: "Как это работает",
     note: "Без карты. Бесплатно навсегда с вашим ИИ-ключом.",
   },
-  hub: { invoice: "Фото счёта", till: "Касса Loyverse", grab: "Заказы Grab", line: "LINE · Ocha", today: "СЕГОДНЯ", alert: "Оповещения о ценах", margin: "Маржа по товару", archive: "Архив · CSV", alertV: "Яйца ▲ 9%", marginV: "Айс-латте 68%" },
-  stats: [
-    { n: "12/12", l: "цен прочитано верно на настоящем счёте Makro" },
-    { n: "27 с", l: "от фото до проверенных строк" },
-    { n: "0", l: "подключений к банку" },
-    { n: "฿0", l: "на старте со своим ИИ-ключом" },
-  ],
+  hub: { invoice: "Фото счёта", till: "Касса Loyverse", grab: "Заказы Grab", line: "LINE · Ocha", today: "СЕГОДНЯ", alert: "Оповещения о ценах", margin: "Маржа по товару", archive: "Архив · CSV", alertV: "Оливк. масло ▲ 9%", marginV: "Льняная рубашка 68%" },
   suite: {
     title: "Всё в одном, у вас в кармане",
     intro: "Всё, что касается ваших денег, в одном месте и с телефона.",
@@ -324,8 +323,8 @@ const ru: L2 = {
       { t: "Отслеживание цен", d: "Видно, когда поставщик поднял цену и на сколько." },
       { t: "Маржа по товару", d: "Реальная маржа по закупочной цене, прочитанной из счетов." },
       { t: "Дневная выручка", d: "Продажи с кассы Loyverse рядом с вашими расходами." },
-      { t: "Команда и отметки", d: "Приглашайте сотрудников отмечаться. Для них бесплатно, контроль у вас." },
-      { t: "Расчётный листок", d: "Тайские соцвзносы и налог считаются за вас, как справка.", soon: true },
+      { t: "Команда и учёт времени", d: "Контроль времени прихода и отсутствий, с полной историей." },
+      { t: "Расчётные листки", d: "Тайские соцвзносы и подоходный налог посчитаны, листки готовы к печати." },
     ],
   },
   tabs: [
@@ -335,9 +334,15 @@ const ru: L2 = {
     { label: "Команда", title: "Сотрудники отмечаются, вы управляете", text: "Пригласите людей по e-mail. Они отмечаются и видят свои выходные. Доступ убирается одним нажатием, история остаётся.", bullets: ["Сотрудники бесплатно", "Менеджеры в Team и Tracker", "Вы решаете, кто видит счета"] },
   ],
   why: {
-    title: "Почему Sabai",
-    no: ["Стопки бумажных счетов", "Рост цен, о котором узнаёшь поздно", "Программы для бухгалтеров", "Часы ввода каждый месяц"],
-    yes: ["Достаточно фото", "Оповещение, когда цена меняется", "Сделано для владельца, не для бухгалтера", "Ваш день в одной цифре"],
+    title: "Почему SabaiBiz",
+    items: [
+      { t: "Достаточно одного фото", d: "Без ввода. Сфотографируйте счёт при приёмке, строки заполнятся сами." },
+      { t: "Цены больше не удивляют", d: "У каждого товара своя история цен и оповещение, когда поставщик её поднимает." },
+      { t: "Ваша реальная маржа по товару", d: "Маржа строится на закупочных ценах из ваших счетов, а не на догадках." },
+      { t: "Сделано для владельца, не для бухгалтера", d: "Простые слова и крупные цифры. Курсы бухгалтерии не нужны." },
+      { t: "Команда под контролем", d: "Учёт времени, отсутствия и расчётные листки в одном месте. Сотрудники бесплатно." },
+      { t: "Ваши данные остаются вашими", d: "Экспорт всего в CSV. Без рекламы, данные не продаются." },
+    ],
   },
   byo: {
     badge: "БЕСПЛАТНЫЙ ТАРИФ",
@@ -349,10 +354,12 @@ const ru: L2 = {
   },
   connector: {
     badge: "СКОРО",
-    title: "Спросите свою бухгалтерию простыми словами",
-    text: "Скоро вы сможете спрашивать Sabai из своего ИИ-помощника на своём языке.",
+    title: "Ваша бухгалтерия — это ИИ, с которым можно говорить",
+    text: "Спрашивайте простыми словами и получайте быстрые ответы. Скоро — прямо из ИИ-помощника, которым вы уже пользуетесь.",
     ask: "Сколько я потратил на молоко в этом месяце?",
     answer: "4 860 ฿ по 6 счетам. Цена выросла на 6% с сентября.",
+    works: "Работает с",
+    logos: ["Claude", "ChatGPT", "Gemini"],
   },
   pricing: {
     title: "Простые цены в батах",
@@ -373,10 +380,10 @@ const ru: L2 = {
     items: [
       { n: "3", t: "Роли", d: "Владелец, менеджер, сотрудник. Каждый видит только разрешённое." },
       { n: "0", t: "Продажи данных", d: "Без рекламы, данные не продаются." },
-      { n: "1", t: "Нажатие для удаления", d: "Мгновенно уберите чей-то доступ. История сохраняется." },
+      { n: "CSV", t: "Экспорт в любой момент", d: "Заберите все счета в таблице, когда захотите." },
     ],
   },
-  final: { title: "Хватит гадать. Знайте свой день.", text: "Бесплатно для старта. Первый счёт — меньше минуты.", cta: "Начать бесплатно" },
+  final: { title: "Ваша бухгалтерия — наконец-то простая.", text: "Бесплатно для старта. Первый счёт — меньше минуты.", cta: "Начать бесплатно" },
   footer: { rights: "Все права защищены.", faq: "FAQ", privacy: "Конфиденциальность", terms: "Условия" },
   langs: "Язык",
 };

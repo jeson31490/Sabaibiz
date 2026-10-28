@@ -109,6 +109,12 @@ const OWNER_CARDS: Card[] = [
     icon: IconStar,
   },
   {
+    title: "Payroll",
+    description: "Salaries, Thai social security and tax, printable payslips.",
+    href: "/dashboard/settings/payroll",
+    icon: IconGroup,
+  },
+  {
     title: "AI key",
     description: "Use your own Anthropic key for unlimited invoice scans.",
     href: "/dashboard/settings/ai-key",
