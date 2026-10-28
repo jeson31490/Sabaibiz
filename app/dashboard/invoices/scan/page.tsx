@@ -429,7 +429,7 @@ export default function ScanInvoicePage() {
   const dropHandlers = { onDragOver, onDragEnter: onDragOver, onDragLeave, onDrop };
 
   return (
-    <div className="min-h-screen bg-teal-50/60 pb-16">
+    <div className="min-h-screen pb-16">
       <DashboardNavbar />
 
       <main className="mx-auto max-w-5xl px-6 py-8">

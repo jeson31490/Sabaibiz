@@ -36,7 +36,8 @@ Credit card, PromptPay QR, TrueMoney Wallet, Google Pay
 Loyverse first, then Ocha and others
 
 ## Color palette
-- Primary: teal #0a646d (ramp in app/globals.css), from the logo
+- App + landing share the dark lagoon look: bg #031B1C, surface #072A2B, teal #19D3B5, gold #E8B94A, cream text #F4EBD8. Signed-in pages wrap in `.app-dark` (app/globals.css), which re-points the old teal/gold/red utilities to this palette; the hub dashboard is `app/components/AppHub.tsx`.
+- Legacy brand: teal #0a646d (ramp in app/globals.css), from the logo
 - Accent: gold #c4a35a; crimson #9e2b2f only for money out / warnings
 - Font: Prompt (Thai + Latin). Landing: `/` English, `/th` Thai (copy in lib/landingCopy.ts)
 

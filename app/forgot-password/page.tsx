@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import { Wordmark } from "../components/landing/SabaiMark";
 import { useState, type FormEvent } from "react";
 import { supabase } from "../../lib/supabase";
 import Turnstile, { CAPTCHA_ENABLED } from "../components/Turnstile";
@@ -47,11 +47,8 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center bg-teal-50/60 px-6 py-10">
-      <Link href="/" className="flex items-center gap-1">
-        <Image src="/Thaimen1.png" alt="Sabai mascot" width={1380} height={1349} sizes="66px" className="h-16 w-auto object-contain" priority />
-        <Image src="/sabaibiz-logo.png" alt="SabaiBiz logo" width={2816} height={1536} sizes="300px" className="h-20 w-auto object-contain" priority />
-      </Link>
+    <main className="app-dark flex min-h-screen flex-col items-center px-6 py-10">
+      <Link href="/" aria-label="SabaiBiz"><Wordmark size={44} id="auth" className="text-3xl" /></Link>
 
       <div className="mt-6 w-full max-w-md rounded-2xl border border-teal-100 bg-white p-8 shadow-card">
         <h1 className="text-center text-3xl font-bold tracking-tight text-teal-950">Forgot your password?</h1>

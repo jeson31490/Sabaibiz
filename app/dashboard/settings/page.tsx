@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 // The cards depend on the signed-in user's role, which is known in the browser (see SettingsCards).
 export default function SettingsPage() {
   return (
-    <div className="min-h-screen bg-teal-50/60 pb-16">
+    <div className="min-h-screen pb-16">
       <DashboardNavbar />
 
       <main className="mx-auto max-w-6xl px-6 py-8">

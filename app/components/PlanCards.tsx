@@ -66,7 +66,7 @@ export default function PlanCards({ showCycleSwitch = true }: { showCycleSwitch?
             <div
               key={id}
               className={`relative flex flex-col rounded-2xl border p-7 shadow-card ${
-                current ? "border-teal-700 bg-teal-700 text-white" : "border-teal-100 bg-white text-teal-950"
+                current ? "border-gold-500 bg-gold-500/10 text-teal-950" : "border-teal-100 bg-white text-teal-950"
               }`}
             >
               {plan.popular && !current && (
@@ -75,12 +75,12 @@ export default function PlanCards({ showCycleSwitch = true }: { showCycleSwitch?
                 </span>
               )}
               <h2 className="text-xl font-bold">{plan.name}</h2>
-              <p className={`mt-1 text-sm ${current ? "text-teal-100" : "text-teal-900/65"}`}>{plan.tag.en}</p>
+              <p className={`mt-1 text-sm ${current ? "text-teal-900/70" : "text-teal-900/65"}`}>{plan.tag.en}</p>
               <p className="mt-5 flex items-baseline gap-1">
                 <span className="text-4xl font-bold tracking-tight">{perMonth === 0 ? "0" : perMonth.toLocaleString("en-US")} ฿</span>
-                <span className={`text-sm ${current ? "text-teal-100" : "text-teal-900/60"}`}>/month</span>
+                <span className={`text-sm ${current ? "text-teal-900/70" : "text-teal-900/60"}`}>/month</span>
               </p>
-              <p className={`mt-1 h-5 text-xs ${current ? "text-teal-100" : "text-teal-900/55"}`}>
+              <p className={`mt-1 h-5 text-xs ${current ? "text-teal-900/70" : "text-teal-900/55"}`}>
                 {perMonth > 0 && months > 1 ? `${cycleTotal(plan, cycle).toLocaleString("en-US")} ฿ billed every ${months} months` : ""}
               </p>
 
@@ -95,7 +95,7 @@ export default function PlanCards({ showCycleSwitch = true }: { showCycleSwitch?
                       {f.soon && (
                         <span
                           className={`ml-2 rounded-full px-2 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide ${
-                            current ? "bg-white/20 text-white" : "bg-gold-100 text-gold-700"
+                            current ? "bg-gold-500/20 text-gold-500" : "bg-gold-100 text-gold-700"
                           }`}
                         >
                           Soon
@@ -107,7 +107,7 @@ export default function PlanCards({ showCycleSwitch = true }: { showCycleSwitch?
               </ul>
 
               {current ? (
-                <p className="mt-7 rounded-full bg-white/15 px-6 py-3 text-center text-base font-semibold">Current plan</p>
+                <p className="mt-7 rounded-full bg-gold-500/20 text-gold-500 px-6 py-3 text-center text-base font-semibold">Current plan</p>
               ) : (
                 <button
                   type="button"

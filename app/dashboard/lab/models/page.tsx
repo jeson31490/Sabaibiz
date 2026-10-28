@@ -103,7 +103,7 @@ export default function CompareModelsPage() {
 
   if (access !== "allowed") {
     return (
-      <div className="min-h-screen bg-teal-50/60">
+      <div className="min-h-screen">
         <DashboardNavbar />
         <main className="mx-auto max-w-3xl px-6 py-16 text-center text-sm text-teal-900/70">
           {access === "checking" ? "Loading…" : "This page doesn't exist."}
@@ -116,7 +116,7 @@ export default function CompareModelsPage() {
   const maxLines = Math.max(0, ...invoices.map((i) => i?.products.length ?? 0));
 
   return (
-    <div className="min-h-screen bg-teal-50/60 pb-16">
+    <div className="min-h-screen pb-16">
       <DashboardNavbar />
       <main className="mx-auto max-w-7xl px-6 py-8">
         <h1 className="text-2xl font-bold tracking-tight text-teal-950">Model comparison</h1>

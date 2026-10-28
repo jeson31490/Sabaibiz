@@ -152,7 +152,7 @@ export default function InvoicesPage() {
   const isEmpty = load.status === "ready" && invoices.length === 0;
 
   return (
-    <div className="min-h-screen bg-teal-50/60 pb-16">
+    <div className="min-h-screen pb-16">
       <DashboardNavbar />
 
       <main className="mx-auto max-w-6xl space-y-8 px-6 py-8">

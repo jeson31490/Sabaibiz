@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -20,6 +19,8 @@ import { fetchPeriodSales, type PeriodSales } from "../../lib/sales";
 import { useUser } from "../context/UserContext";
 import { inputClass, labelClass } from "./FormField";
 import PriceAlertsCard from "./PriceAlertsCard";
+import AppHub, { type HubOutput, type HubSource } from "./AppHub";
+import SabaiMark from "./landing/SabaiMark";
 
 type State =
   | { status: "loading" }
@@ -228,18 +229,66 @@ export default function DashboardContent() {
     { label: "Result", ...resultCard(sales, costs) },
   ];
 
+  const periodLabel = periodId === "custom" ? "Selected period" : PERIODS.find((p) => p.id === periodId)!.label;
+  const topAlert = ready?.alerts[0];
+  const salesOn = sales !== "loading" && sales !== "error" && sales.connected;
+  const hubSources: HubSource[] = [
+    {
+      id: "invoice",
+      title: "Invoice photo",
+      sub: costs === "loading" || costs === "error" ? "Scan with your phone" : plural(costs.count, "invoice"),
+      detail: "Take the picture at the delivery door. Sabai fills in the supplier, products and prices for you to check.",
+      cta: { label: "Scan an invoice", href: "/dashboard/invoices/scan" },
+    },
+    {
+      id: "till",
+      title: "Loyverse till",
+      sub: salesOn ? "Connected" : "Not connected",
+      detail: salesOn
+        ? "Your till sales land here by themselves, ticket by ticket."
+        : "Connect your till to see revenue and your real result for the day.",
+      cta: { label: salesOn ? "Open settings" : "Connect Loyverse", href: "/dashboard/settings/pos-connection" },
+    },
+    { id: "grab", title: "Grab orders", sub: "Coming soon", detail: "Grab orders will flow in with the rest of your takings.", soon: true },
+    { id: "line", title: "LINE · Ocha", sub: "Coming soon", detail: "Get your daily number on LINE, where you already chat.", soon: true },
+  ];
+  const hubOutputs: HubOutput[] = [
+    { label: "Revenue", value: kpis[0].value, sub: kpis[0].note, tone: "teal" },
+    { label: "Costs", value: kpis[1].value, sub: kpis[1].note, tone: "red", href: "/dashboard/invoices" },
+    { label: "Result", value: kpis[2].value, sub: kpis[2].note, tone: "gold", highlight: true },
+    {
+      label: "Price alerts",
+      value: ready ? (ready.alerts.length ? `${ready.alerts.length} alert${ready.alerts.length === 1 ? "" : "s"}` : "All calm") : "…",
+      sub: topAlert ? `${topAlert.product} ${topAlert.change}` : "No price jumps spotted",
+      tone: ready && ready.alerts.length ? "red" : "teal",
+      href: "/dashboard/price-analysis",
+    },
+    {
+      label: "To review",
+      value: toReview > 0 ? `${toReview} product${toReview === 1 ? "" : "s"}` : "Nothing",
+      sub: toReview > 0 ? "Check before using in recipes" : "Your products are up to date",
+      tone: toReview > 0 ? "gold" : "teal",
+      href: "/dashboard/ingredients",
+    },
+  ];
+
   return (
     <div className="pb-32">
       <main className="mx-auto max-w-6xl space-y-8 px-6 py-8">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-teal-950 sm:text-3xl">Welcome to SabaiBiz</h1>
-          <p className="mt-1 text-sm text-teal-900/65">
-            Here&apos;s how {user.businessName} is doing{" "}
-            {periodId === "custom"
-              ? `from ${fmtDate(period.from)} to ${fmtDate(period.to)}`
-              : PERIODS.find((p) => p.id === periodId)!.label.toLowerCase()}
-            .
-          </p>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="font-plex text-xs uppercase tracking-[0.15em] text-teal-400">
+              {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Bangkok" })}
+            </p>
+            <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-teal-950 sm:text-5xl">
+              Here is your <span className="text-gold-500">{periodLabel.toLowerCase()}</span>, {user.businessName}.
+            </h1>
+            {periodId === "custom" && (
+              <p className="mt-1 text-sm text-teal-900/65">
+                {fmtDate(period.from)} to {fmtDate(period.to)}
+              </p>
+            )}
+          </div>
         </div>
 
         <section aria-label="Period">
@@ -253,8 +302,8 @@ export default function DashboardContent() {
                 onClick={() => setPeriod(p.id)}
                 className={`rounded-full px-5 py-2 text-sm font-semibold transition ${
                   periodId === p.id
-                    ? "bg-teal-700 text-white shadow-card"
-                    : "border border-teal-200 bg-white text-teal-800 hover:bg-teal-50"
+                    ? "border border-teal-400 bg-teal-400 text-[#031b1c]"
+                    : "border border-teal-950/30 bg-transparent text-teal-950 hover:border-teal-400/60 hover:bg-teal-400/10"
                 }`}
               >
                 {p.label}
@@ -313,37 +362,9 @@ export default function DashboardContent() {
           </Link>
         )}
 
-        {/* The money ticket: in, out, what is left. Same receipt look as the landing page. */}
-        <section aria-label="Key numbers" className="grid items-start gap-6 lg:grid-cols-[minmax(0,26rem)_1fr]">
-          <div style={{ filter: "drop-shadow(0 10px 18px rgba(5, 46, 51, 0.15))" }}>
-            <div
-              className="bg-paper px-6 pb-9 pt-6 text-teal-950"
-              style={{
-                WebkitMask: "conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 16px 100%",
-                mask: "conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 16px 100%",
-              }}
-            >
-              <p className="text-lg font-semibold">
-                {periodId === "custom" ? "Selected period" : PERIODS.find((p) => p.id === periodId)!.label}
-              </p>
-              <div className="mt-3 border-t border-dashed border-teal-950/30" />
-              <dl className="num mt-4 space-y-4">
-                {kpis.map(({ label, value, note }, i) => (
-                  <div key={label} className={i === 2 ? "border-t border-dashed border-teal-950/30 pt-4" : ""}>
-                    <dt className="text-sm font-medium text-teal-900/70">{label}</dt>
-                    <dd
-                      className={`mt-0.5 whitespace-nowrap text-right font-bold ${
-                        i === 2 ? "text-3xl text-teal-700" : i === 1 ? "text-2xl text-crimson-600" : "text-2xl text-teal-700"
-                      }`}
-                    >
-                      {value}
-                    </dd>
-                    <p className="mt-0.5 text-xs text-teal-900/60">{note}</p>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          </div>
+        <AppHub sources={hubSources} outputs={hubOutputs} />
+
+        <section aria-label="Alerts">
           <PriceAlertsCard alerts={ready?.alerts ?? []} />
         </section>
 
@@ -364,15 +385,7 @@ export default function DashboardContent() {
             </p>
           ) : ready.recent.length === 0 ? (
             <div className="flex flex-col items-center px-6 py-12 text-center">
-              <div className="relative h-40 w-56 max-w-full">
-                <Image
-                  src="/Snap%20Photo.png"
-                  alt="Mascot ready to photograph your first invoice"
-                  fill
-                  sizes="224px"
-                  className="object-contain"
-                />
-              </div>
+              <SabaiMark size={72} id="empty" />
               <h3 className="mt-6 text-xl font-semibold text-teal-950">No invoices yet</h3>
               <p className="mt-2 max-w-sm text-sm text-teal-900/65">
                 Scan your first invoice to see your costs and profit here.
