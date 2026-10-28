@@ -291,7 +291,7 @@ export default function DashboardContent() {
     },
     {
       id: "till",
-      title: "Loyverse till",
+      title: "Loyverse POS",
       sub: syncing ? "Syncing…" : hasLoyverse ? "Connected · auto-sync" : "Not connected",
       detail: hasLoyverse
         ? "Your till sales land here by themselves, ticket by ticket. No need to sync by hand."
@@ -305,7 +305,7 @@ export default function DashboardContent() {
       detail: "Another till, or none? Type the day's total, or photograph the till's end-of-day receipt: Sabai reads the total for you to check.",
       cta: { label: "Enter the day's takings", onClick: () => setShowTakings(true) },
     },
-    { id: "grab", title: "Grab · LINE · Ocha", sub: "Coming soon", detail: "Grab orders, LINE and Ocha will flow in with the rest of your takings.", soon: true },
+    { id: "grab", title: "Orders (Grab, Lazada…) · LINE · Ocha", sub: "Coming soon", detail: "Grab orders, LINE and Ocha will flow in with the rest of your takings.", soon: true },
   ];
   const hubOutputs: HubOutput[] = [
     { label: "Revenue", value: kpis[0].value, sub: kpis[0].note, tone: "teal" },
