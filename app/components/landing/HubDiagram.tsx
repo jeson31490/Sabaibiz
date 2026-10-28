@@ -4,6 +4,39 @@ import { SabaiCurve } from "./SabaiMark";
 const SRC_Y = [60, 160, 260, 360];
 const OUT_Y = [60, 160, 260, 360];
 
+/** Small generic icons (24×24), drawn in teal. Loyverse uses its real logo (live integration); no third-party logos otherwise. */
+function SourceIcon({ i, x, y }: { i: number; x: number; y: number }) {
+  const common = { fill: "none", stroke: "#19D3B5", strokeWidth: 1.6, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  return (
+    <g transform={`translate(${x} ${y - 12})`}>
+      {i === 0 && (
+        <g {...common}>
+          <path d="M6 3h9l4 4v14H6z" />
+          <path d="M15 3v4h4M9 12h7M9 15.500h7M9 9h3" />
+        </g>
+      )}
+      {i === 1 && (
+        <g>
+          <rect x="-2" y="-2" width="28" height="28" rx="7" fill="#fff" />
+          <image href="/brand/loyverse.png" x="1" y="0" width="22" height="24" preserveAspectRatio="xMidYMid meet" />
+        </g>
+      )}
+      {i === 2 && (
+        <g {...common}>
+          <path d="M5 8h14l-1 12H6z" />
+          <path d="M9 8V6.500a3 3 0 0 1 6 0V8" />
+        </g>
+      )}
+      {i === 3 && (
+        <g {...common}>
+          <path d="M4 5h16v11H11l-4 4v-4H4z" />
+          <path d="M8 9.500h8M8 12.500h5" />
+        </g>
+      )}
+    </g>
+  );
+}
+
 /** Sources flow into the Sabai sphere; the answers flow out. Desktop: animated SVG. Mobile: stacked chips. */
 export default function HubDiagram({ t }: { t: L2["hub"] }) {
   const sources = [t.invoice, t.till, t.grab, t.line];
@@ -49,15 +82,23 @@ export default function HubDiagram({ t }: { t: L2["hub"] }) {
             </g>
           );
         })}
-        {sources.map((s, i) => (
-          <g key={s}>
-            <rect x="20" y={SRC_Y[i] - 26} width="195" height="52" rx="14" fill="#072A2B" stroke="#19D3B5" strokeOpacity="0.4" />
-            <circle cx="42" cy={SRC_Y[i]} r="5" fill="#19D3B5" />
-            <text x="58" y={SRC_Y[i] + 5} fill="#F4EBD8" fontSize="15" fontFamily="var(--font-plex), monospace">
-              {s}
-            </text>
-          </g>
-        ))}
+        {sources.map((s, i) => {
+          const [title, sub] = s.split("|");
+          return (
+            <g key={s}>
+              <rect x="20" y={SRC_Y[i] - 26} width="195" height="52" rx="14" fill="#072A2B" stroke="#19D3B5" strokeOpacity="0.4" />
+              <SourceIcon i={i} x={34} y={SRC_Y[i]} />
+              <text x="72" y={SRC_Y[i] + (sub ? -2 : 5)} fill="#F4EBD8" fontSize="15" fontFamily="var(--font-plex), monospace">
+                {title}
+              </text>
+              {sub && (
+                <text x="72" y={SRC_Y[i] + 15} fill="#F4EBD8" fillOpacity="0.65" fontSize="11.500" fontFamily="var(--font-plex), monospace">
+                  {sub}
+                </text>
+              )}
+            </g>
+          );
+        })}
         {outputs.map((o, i) => (
           <g key={o.a}>
             <rect x="685" y={OUT_Y[i] - 30} width="200" height="60" rx="14" fill="#072A2B" stroke={o.c} strokeOpacity="0.55" />
@@ -87,7 +128,7 @@ export default function HubDiagram({ t }: { t: L2["hub"] }) {
         <div className="flex flex-wrap justify-center gap-2">
           {sources.map((s) => (
             <span key={s} className="rounded-full border border-[#19D3B5]/40 bg-[#072A2B] px-3 py-1.5 font-plex text-xs text-[#F4EBD8]">
-              {s}
+              {s.replace("|", " (") + (s.includes("|") ? ")" : "")}
             </span>
           ))}
         </div>

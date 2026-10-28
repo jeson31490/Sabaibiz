@@ -36,7 +36,7 @@ const en: L2 = {
     cta2: "See how it works",
     note: "No card needed. Free forever with your own AI key.",
   },
-  hub: { invoice: "Invoice photo", till: "Loyverse till", grab: "Grab orders", line: "LINE · Ocha", today: "TODAY", alert: "Price alerts", margin: "Margin per product", archive: "Archive · CSV", alertV: "Olive oil ▲ 9%", marginV: "Linen shirt 68%" },
+  hub: { invoice: "Invoice photo", till: "Loyverse POS", grab: "Orders|Grab, Lazada…", line: "LINE · Ocha", today: "TODAY", alert: "Price alerts", margin: "Margin per product", archive: "Archive · CSV", alertV: "Olive oil ▲ 9%", marginV: "Linen shirt 68%" },
   suite: {
     title: "All in one, in your pocket",
     intro: "Everything that touches your money, in one place you can open from your phone.",
@@ -128,7 +128,7 @@ const th: L2 = {
     cta2: "ดูวิธีใช้งาน",
     note: "ไม่ต้องใช้บัตร ใช้ฟรีตลอดด้วยคีย์ AI ของคุณเอง",
   },
-  hub: { invoice: "รูปใบแจ้งหนี้", till: "เครื่องขาย Loyverse", grab: "ออเดอร์ Grab", line: "LINE · Ocha", today: "วันนี้", alert: "แจ้งเตือนราคา", margin: "กำไรต่อสินค้า", archive: "คลัง · CSV", alertV: "น้ำมันมะกอก ▲ 9%", marginV: "เสื้อลินิน 68%" },
+  hub: { invoice: "รูปใบแจ้งหนี้", till: "Loyverse POS", grab: "ออเดอร์|Grab, Lazada…", line: "LINE · Ocha", today: "วันนี้", alert: "แจ้งเตือนราคา", margin: "กำไรต่อสินค้า", archive: "คลัง · CSV", alertV: "น้ำมันมะกอก ▲ 9%", marginV: "เสื้อลินิน 68%" },
   suite: {
     title: "ครบในที่เดียว ในกระเป๋าคุณ",
     intro: "ทุกอย่างที่เกี่ยวกับเงินของคุณ อยู่ในที่เดียวและเปิดดูจากมือถือได้",
@@ -220,7 +220,7 @@ const fr: L2 = {
     cta2: "Voir comment ça marche",
     note: "Sans carte. Gratuit à vie avec votre propre clé IA.",
   },
-  hub: { invoice: "Photo de facture", till: "Caisse Loyverse", grab: "Commandes Grab", line: "LINE · Ocha", today: "AUJOURD'HUI", alert: "Alertes de prix", margin: "Marge par produit", archive: "Archive · CSV", alertV: "Huile d'olive ▲ 9 %", marginV: "Chemise en lin 68 %" },
+  hub: { invoice: "Photo de facture", till: "Loyverse POS", grab: "Commandes|Grab, Lazada…", line: "LINE · Ocha", today: "AUJOURD'HUI", alert: "Alertes de prix", margin: "Marge par produit", archive: "Archive · CSV", alertV: "Huile d'olive ▲ 9 %", marginV: "Chemise en lin 68 %" },
   suite: {
     title: "Tout-en-un, dans votre poche",
     intro: "Tout ce qui touche à votre argent, au même endroit, depuis votre téléphone.",
@@ -312,7 +312,7 @@ const ru: L2 = {
     cta2: "Как это работает",
     note: "Без карты. Бесплатно навсегда с вашим ИИ-ключом.",
   },
-  hub: { invoice: "Фото счёта", till: "Касса Loyverse", grab: "Заказы Grab", line: "LINE · Ocha", today: "СЕГОДНЯ", alert: "Оповещения о ценах", margin: "Маржа по товару", archive: "Архив · CSV", alertV: "Оливк. масло ▲ 9%", marginV: "Льняная рубашка 68%" },
+  hub: { invoice: "Фото счёта", till: "Loyverse POS", grab: "Заказы|Grab, Lazada…", line: "LINE · Ocha", today: "СЕГОДНЯ", alert: "Оповещения о ценах", margin: "Маржа по товару", archive: "Архив · CSV", alertV: "Оливк. масло ▲ 9%", marginV: "Льняная рубашка 68%" },
   suite: {
     title: "Всё в одном, у вас в кармане",
     intro: "Всё, что касается ваших денег, в одном месте и с телефона.",
