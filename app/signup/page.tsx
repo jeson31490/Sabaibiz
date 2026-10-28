@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, type FormEvent } from "react";
 import { useUser } from "../context/UserContext";
 import { supabase } from "../../lib/supabase";
+import { isDisposableEmail } from "../../lib/disposableEmail";
+import Turnstile, { CAPTCHA_ENABLED } from "../components/Turnstile";
 import { AUTH, authLang } from "../../lib/authCopy";
 
 const COUNTRIES = [
@@ -40,6 +42,8 @@ function SignupForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -49,16 +53,27 @@ function SignupForm() {
       setSuccess(null);
       return;
     }
+    const email = String(data.get("email")).trim();
+    if (isDisposableEmail(email)) {
+      setError("Please use a permanent email address (temporary inboxes are not accepted).");
+      setSuccess(null);
+      return;
+    }
+    if (CAPTCHA_ENABLED && !captchaToken) {
+      setError("Please wait for the security check to finish, then try again.");
+      setSuccess(null);
+      return;
+    }
     setError(null);
     setSuccess(null);
     setSubmitting(true);
 
-    const email = String(data.get("email")).trim();
     const fullName = String(data.get("fullName")).trim();
     const { data: result, error: signUpError } = await supabase.auth.signUp({
       email,
       password: String(data.get("password")),
       options: {
+        captchaToken: captchaToken ?? undefined,
         data: {
           full_name: fullName,
           business_name: String(data.get("businessName")).trim(),
@@ -69,6 +84,7 @@ function SignupForm() {
     setSubmitting(false);
 
     if (signUpError) {
+      setCaptchaKey((k) => k + 1);
       setError(signUpError.message);
       return;
     }
@@ -214,6 +230,8 @@ function SignupForm() {
               {success}
             </p>
           )}
+
+          <Turnstile onToken={setCaptchaToken} resetKey={captchaKey} />
 
           <button
             type="submit"
