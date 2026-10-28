@@ -10,7 +10,7 @@ export type HubSource = {
   sub: string;
   /** What is happening with this source, shown under the diagram. */
   detail: string;
-  cta?: { label: string; href: string };
+  cta?: { label: string; href?: string; onClick?: () => void };
   soon?: boolean;
 };
 
@@ -206,11 +206,16 @@ export default function AppHub({ sources, outputs }: { sources: HubSource[]; out
             <span className="font-plex text-sm uppercase text-[#19D3B5]">{active.title}</span>
             <p className="mt-1 text-base text-[#F4EBD8]">{active.detail}</p>
           </div>
-          {active.cta && (
-            <Link href={active.cta.href} className="font-semibold text-[#E8B94A] hover:underline">
-              {active.cta.label} →
-            </Link>
-          )}
+          {active.cta &&
+            (active.cta.onClick ? (
+              <button type="button" onClick={active.cta.onClick} className="font-semibold text-[#E8B94A] hover:underline">
+                {active.cta.label} →
+              </button>
+            ) : (
+              <Link href={active.cta.href ?? "#"} className="font-semibold text-[#E8B94A] hover:underline">
+                {active.cta.label} →
+              </Link>
+            ))}
         </div>
       )}
     </section>
