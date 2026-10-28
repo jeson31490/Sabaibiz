@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, type FormEvent } from "react";
 import { useUser } from "../context/UserContext";
 import { supabase } from "../../lib/supabase";
+import Turnstile, { CAPTCHA_ENABLED } from "../components/Turnstile";
 import { AUTH, authLang } from "../../lib/authCopy";
 
 const inputClass =
@@ -28,20 +29,28 @@ function LoginForm() {
   const { updateUser } = useUser();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
+    if (CAPTCHA_ENABLED && !captchaToken) {
+      setError("Please wait for the security check to finish, then try again.");
+      return;
+    }
     setError(null);
     setSubmitting(true);
 
     const { data: result, error: signInError } = await supabase.auth.signInWithPassword({
       email: String(data.get("email")).trim(),
       password: String(data.get("password")),
+      options: { captchaToken: captchaToken ?? undefined },
     });
 
     if (signInError) {
       setSubmitting(false);
+      setCaptchaKey((k) => k + 1);
       setError(signInError.message);
       return;
     }
@@ -115,6 +124,8 @@ function LoginForm() {
               {error}
             </p>
           )}
+
+          <Turnstile onToken={setCaptchaToken} resetKey={captchaKey} />
 
           <button
             type="submit"
