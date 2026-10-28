@@ -5,13 +5,12 @@ export type L2 = {
   htmlLang: string;
   meta: { title: string; description: string };
   nav: { how: string; pricing: string; security: string; signIn: string; start: string };
-  announce: string;
   hero: { eyebrow: string; lines: [string, string, string]; sub: string; cta: string; cta2: string; note: string };
   hub: { invoice: string; till: string; grab: string; line: string; today: string; alert: string; margin: string; archive: string; alertV: string; marginV: string };
   suite: { title: string; intro: string; live: string; soon: string; items: { t: string; d: string; soon?: boolean }[] };
   tabs: { label: string; title: string; text: string; badge?: string; bullets: string[] }[];
   why: { title: string; items: { t: string; d: string }[] };
-  byo: { badge: string; title: string; text: string; steps: string[]; card: string; cardNote: string };
+  steps: { title: string; intro: string; items: { t: string; d: string }[] };
   connector: { badge: string; title: string; text: string; ask: string; answer: string; works: string; logos: string[] };
   pricing: { title: string; intro: string; monthly: string; yearly: string; save: string; perMonth: string; popular: string; soon: string; newTag: string; cta: string; pay: string; yearlyNote: string };
   security: { title: string; items: { n: string; t: string; d: string }[] };
@@ -27,7 +26,6 @@ const en: L2 = {
     description: "Photograph invoices, connect your till, see one clear number for the day. Simple accounting for any small business in Thailand. Free to start.",
   },
   nav: { how: "What it does", pricing: "Pricing", security: "Security", signIn: "Sign in", start: "Start free" },
-  announce: "Built in a Samui kitchen · Tested on real Makro invoices",
   hero: {
     eyebrow: "EASY ACCOUNTING FOR SMALL BUSINESS",
     lines: ["Snap the invoice.", "Know your day.", "Keep your margin."],
@@ -68,13 +66,10 @@ const en: L2 = {
       { t: "Yours to keep", d: "Export everything to CSV. No ads, and your data is never sold." },
     ],
   },
-  byo: {
-    badge: "FREE PLAN",
-    title: "Bring your own AI, pay nothing to Sabai",
-    text: "Paste your own Anthropic key and read as many invoices as you want, on any plan. You pay the AI provider directly, about 1–2 ฿ per invoice.",
-    steps: ["Create an Anthropic account", "Copy your API key", "Paste it in Sabai. Done"],
-    card: "AI key connected",
-    cardNote: "Unlimited scans",
+  steps: {
+    title: "Easy accounting in three steps",
+    intro: "No training needed. If you can use a phone camera, you can use SabaiBiz.",
+    items: [{ t: "Snap", d: "Photograph a supplier invoice, or let your till sales flow in." }, { t: "Check", d: "The lines fill themselves. You glance, fix a number if needed, done." }, { t: "Know", d: "One clear number for the day, price alerts and your margins." }],
   },
   connector: {
     badge: "COMING SOON",
@@ -119,7 +114,6 @@ const th: L2 = {
     description: "ถ่ายรูปใบแจ้งหนี้ เชื่อมระบบขาย แล้วเห็นตัวเลขของวันเดียวชัดๆ บัญชีง่ายๆ สำหรับทุกธุรกิจเล็กในไทย เริ่มฟรี",
   },
   nav: { how: "ทำอะไรได้บ้าง", pricing: "ราคา", security: "ความปลอดภัย", signIn: "เข้าสู่ระบบ", start: "เริ่มฟรี" },
-  announce: "สร้างในครัวที่เกาะสมุย · ทดสอบกับใบแจ้งหนี้แม็คโครจริง",
   hero: {
     eyebrow: "บัญชีง่ายๆ สำหรับธุรกิจขนาดเล็ก",
     lines: ["ถ่ายรูปใบแจ้งหนี้", "รู้ยอดของวัน", "รักษากำไรไว้"],
@@ -160,13 +154,10 @@ const th: L2 = {
       { t: "เป็นของคุณเสมอ", d: "ส่งออกทุกอย่างเป็น CSV ไม่มีโฆษณา และไม่ขายข้อมูลของคุณ" },
     ],
   },
-  byo: {
-    badge: "แพ็กเกจฟรี",
-    title: "ใช้ AI ของคุณเอง ไม่ต้องจ่ายให้ Sabai",
-    text: "วางคีย์ Anthropic ของคุณ แล้วอ่านใบแจ้งหนี้ได้ไม่จำกัดทุกแพ็กเกจ จ่ายตรงให้ผู้ให้บริการ AI ประมาณ 1–2 บาทต่อใบ",
-    steps: ["สร้างบัญชี Anthropic", "คัดลอก API key", "วางใน Sabai เสร็จ"],
-    card: "เชื่อมคีย์ AI แล้ว",
-    cardNote: "สแกนไม่จำกัด",
+  steps: {
+    title: "บัญชีง่ายๆ ใน 3 ขั้นตอน",
+    intro: "ไม่ต้องเรียน ถ้าถ่ายรูปด้วยมือถือเป็น ก็ใช้ SabaiBiz ได้",
+    items: [{ t: "ถ่าย", d: "ถ่ายรูปใบแจ้งหนี้จากซัพพลายเออร์ หรือให้ยอดขายจากเครื่องขายไหลเข้ามาเอง" }, { t: "ตรวจ", d: "รายการกรอกให้เอง ดูผ่านๆ แก้ตัวเลขถ้าจำเป็น เสร็จ" }, { t: "รู้", d: "ตัวเลขชัดๆ ประจำวัน แจ้งเตือนราคา และกำไรของคุณ" }],
   },
   connector: {
     badge: "เร็วๆ นี้",
@@ -211,7 +202,6 @@ const fr: L2 = {
     description: "Photographiez vos factures, connectez votre caisse, voyez un seul chiffre clair pour la journée. Gratuit pour commencer.",
   },
   nav: { how: "Ce que ça fait", pricing: "Tarifs", security: "Sécurité", signIn: "Connexion", start: "Commencer gratuitement" },
-  announce: "Conçu dans une cuisine de Samui · Testé sur de vraies factures Makro",
   hero: {
     eyebrow: "LA COMPTA FACILE POUR PETITS COMMERCES",
     lines: ["Photographiez la facture.", "Connaissez votre journée.", "Gardez votre marge."],
@@ -252,13 +242,10 @@ const fr: L2 = {
       { t: "Vos données restent à vous", d: "Exportez tout en CSV. Pas de pub, et vos données ne sont jamais vendues." },
     ],
   },
-  byo: {
-    badge: "FORFAIT GRATUIT",
-    title: "Apportez votre IA, ne payez rien à Sabai",
-    text: "Collez votre clé Anthropic et lisez autant de factures que vous voulez, sur tous les forfaits. Vous payez directement le fournisseur d'IA, environ 1 à 2 ฿ par facture.",
-    steps: ["Créez un compte Anthropic", "Copiez votre clé API", "Collez-la dans Sabai. C'est fait"],
-    card: "Clé IA connectée",
-    cardNote: "Scans illimités",
+  steps: {
+    title: "La compta simple, en trois étapes",
+    intro: "Aucune formation. Si vous savez prendre une photo avec votre téléphone, vous savez utiliser SabaiBiz.",
+    items: [{ t: "Photographiez", d: "Prenez une facture fournisseur en photo, ou laissez les ventes de votre caisse arriver toutes seules." }, { t: "Vérifiez", d: "Les lignes se remplissent seules. Un coup d’œil, une correction si besoin, c’est fait." }, { t: "Sachez", d: "Un chiffre clair pour la journée, des alertes de prix et vos marges." }],
   },
   connector: {
     badge: "BIENTÔT",
@@ -303,7 +290,6 @@ const ru: L2 = {
     description: "Сфотографируйте счета, подключите кассу и увидьте одну понятную цифру за день. Бесплатно для старта.",
   },
   nav: { how: "Что умеет", pricing: "Тарифы", security: "Безопасность", signIn: "Войти", start: "Начать бесплатно" },
-  announce: "Создано на кухне на Самуи · Проверено на настоящих счетах Makro",
   hero: {
     eyebrow: "ПРОСТАЯ БУХГАЛТЕРИЯ ДЛЯ МАЛОГО БИЗНЕСА",
     lines: ["Сфотографируйте счёт.", "Узнайте свой день.", "Сохраните маржу."],
@@ -344,13 +330,10 @@ const ru: L2 = {
       { t: "Ваши данные остаются вашими", d: "Экспорт всего в CSV. Без рекламы, данные не продаются." },
     ],
   },
-  byo: {
-    badge: "БЕСПЛАТНЫЙ ТАРИФ",
-    title: "Свой ИИ — и ничего не платите Sabai",
-    text: "Вставьте свой ключ Anthropic и читайте сколько угодно счетов на любом тарифе. Вы платите провайдеру ИИ напрямую, примерно 1–2 ฿ за счёт.",
-    steps: ["Создайте аккаунт Anthropic", "Скопируйте API-ключ", "Вставьте в Sabai. Готово"],
-    card: "ИИ-ключ подключён",
-    cardNote: "Сканы без лимита",
+  steps: {
+    title: "Простая бухгалтерия в три шага",
+    intro: "Обучение не нужно. Если умеете фотографировать на телефон, справитесь с SabaiBiz.",
+    items: [{ t: "Снимите", d: "Сфотографируйте счёт поставщика или пусть продажи с кассы поступают сами." }, { t: "Проверьте", d: "Строки заполняются сами. Беглый взгляд, правка при необходимости, готово." }, { t: "Узнайте", d: "Одна понятная цифра за день, оповещения о ценах и ваша маржа." }],
   },
   connector: {
     badge: "СКОРО",
