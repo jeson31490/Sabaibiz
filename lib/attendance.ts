@@ -1,5 +1,6 @@
 import { bangkokToday } from "./invoices";
 import { supabase } from "./supabase";
+import type { ZoneResult } from "./zone";
 
 // Clock in/out and absence declarations (supabase/18_team_permissions_attendance.sql).
 // Times are set by the database clock; the app can only ask to start or end a shift.
@@ -10,6 +11,9 @@ export type Shift = {
   clockIn: string;
   /** Null while the shift is still open. */
   clockOut: string | null;
+  /** In / out of the workplace zone when the check is on (kept 3 months); null otherwise. */
+  clockInZone: ZoneResult | null;
+  clockOutZone: ZoneResult | null;
 };
 
 export type AbsenceKind = "absence" | "sick";
@@ -24,7 +28,14 @@ export type Absence = {
   note: string | null;
 };
 
-type RawShift = { id: string | null; employee_id: string; clock_in: string; clock_out: string | null };
+type RawShift = {
+  id: string | null;
+  employee_id: string;
+  clock_in: string;
+  clock_out: string | null;
+  clock_in_zone?: ZoneResult | null;
+  clock_out_zone?: ZoneResult | null;
+};
 type RawAbsence = {
   id: string;
   employee_id: string;
@@ -39,6 +50,8 @@ const toShift = (r: RawShift): Shift => ({
   employeeId: r.employee_id,
   clockIn: r.clock_in,
   clockOut: r.clock_out,
+  clockInZone: r.clock_in_zone ?? null,
+  clockOutZone: r.clock_out_zone ?? null,
 });
 
 const toAbsence = (r: RawAbsence): Absence => ({
@@ -50,7 +63,7 @@ const toAbsence = (r: RawAbsence): Absence => ({
   note: r.note,
 });
 
-const SHIFT_SELECT = "id, employee_id, clock_in, clock_out";
+const SHIFT_SELECT = "id, employee_id, clock_in, clock_out, clock_in_zone, clock_out_zone";
 const ABSENCE_SELECT = "id, employee_id, kind, start_date, end_date, note";
 
 /** Supabase answers like this when supabase/18_team_permissions_attendance.sql hasn't been run yet. */
@@ -89,15 +102,15 @@ export async function fetchMyShifts(userId: string, sinceDay: string): Promise<S
 }
 
 /** Starts a shift now. Pressing it twice returns the shift that is already open. */
-export async function clockIn(): Promise<Shift> {
-  const { data, error } = await supabase.rpc("clock_in");
+export async function clockIn(position?: { lat: number; lng: number } | null): Promise<Shift> {
+  const { data, error } = await supabase.rpc("clock_in", { p_lat: position?.lat ?? null, p_lng: position?.lng ?? null });
   if (error) throw error;
   return toShift(data as RawShift);
 }
 
 /** Ends the open shift now. Null when there was nothing to end. */
-export async function clockOut(): Promise<Shift | null> {
-  const { data, error } = await supabase.rpc("clock_out");
+export async function clockOut(position?: { lat: number; lng: number } | null): Promise<Shift | null> {
+  const { data, error } = await supabase.rpc("clock_out", { p_lat: position?.lat ?? null, p_lng: position?.lng ?? null });
   if (error) throw error;
   // A composite return type comes back as an object whose fields are all null when nothing matched.
   const row = data as RawShift | null;

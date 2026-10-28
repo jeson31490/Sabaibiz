@@ -25,6 +25,7 @@ import {
 } from "../../lib/attendance";
 import { bangkokToday } from "../../lib/invoices";
 import { supabase } from "../../lib/supabase";
+import { getPosition, isZoneRequired } from "../../lib/zone";
 import { useUser } from "../context/UserContext";
 import { inputClass, labelClass } from "./FormField";
 
@@ -51,6 +52,8 @@ export default function MyDay() {
   const [kind, setKind] = useState<AbsenceKind>("absence");
   const [sending, setSending] = useState(false);
   const [declareError, setDeclareError] = useState<string | null>(null);
+  // The owner can switch on an "in zone / out of zone" check at clock-in and clock-out.
+  const [zoneOn, setZoneOn] = useState(false);
 
   const reload = useCallback(async () => {
     try {
@@ -89,17 +92,27 @@ export default function MyDay() {
     void reload();
   }, [reload]);
 
+  useEffect(() => {
+    let cancelled = false;
+    isZoneRequired().then((on) => !cancelled && setZoneOn(on));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function handleClock() {
     if (load.status !== "ready") return;
     setBusy(true);
     setActionError(null);
     setNotice(null);
     try {
+      // Asked once, only at this moment. If it is refused the shift is still saved, marked "location not shared".
+      const position = zoneOn ? await getPosition() : null;
       if (load.open) {
-        await clockOut();
+        await clockOut(position);
         setNotice("You're clocked out. See you next time!");
       } else {
-        await clockIn();
+        await clockIn(position);
         setNotice("You're clocked in. Have a good shift!");
       }
       await reload();
@@ -193,6 +206,12 @@ export default function MyDay() {
             >
               {busy ? "…" : load.open ? "Clock out" : "Clock in"}
             </button>
+            {zoneOn && (
+              <p className="mt-3 text-xs text-teal-900/60">
+                Your workplace checks that you are on site when you clock in or out. Your phone shares its position once, at that
+                moment. Only “in zone” or “out of zone” is kept, for 3 months. Your position is never stored.
+              </p>
+            )}
             {load.today.length > 0 && (
               <ul className="mt-5 space-y-1 text-sm text-teal-900/75">
                 {load.today.map((s) => (

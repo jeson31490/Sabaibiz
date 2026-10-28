@@ -82,6 +82,15 @@ function IconTruck({ className }: IconProps) {
   );
 }
 
+function IconPin({ className }: IconProps) {
+  return (
+    <svg {...svgProps} className={className}>
+      <path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.500C5 14.800 12 21 12 21Z" />
+      <circle cx="12" cy="9.500" r="2.500" />
+    </svg>
+  );
+}
+
 type Card = {
   title: string;
   description: string;
@@ -131,6 +140,12 @@ const OWNER_CARDS: Card[] = [
     description: "Invite managers and control what each person can see.",
     href: "/dashboard/settings/team-access",
     icon: IconGroup,
+  },
+  {
+    title: "Workplace zone",
+    description: "Check that clock-ins happen on site (in zone / out of zone).",
+    href: "/dashboard/settings/workplace",
+    icon: IconPin,
   },
   {
     title: "Suppliers",

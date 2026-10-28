@@ -29,6 +29,12 @@ export async function GET(request: Request) {
     return Response.json({ error: "not configured" }, { status: 500 });
   }
 
+  // Housekeeping: the "in zone / out of zone" results are kept 3 months (supabase/24_workplace_zone.sql).
+  const purged = await admin.rpc("purge_old_zone_checks");
+  if (purged.error && !["42883", "PGRST202"].includes(purged.error.code ?? "")) {
+    console.error("cron/sync-sales: zone purge failed", purged.error.message);
+  }
+
   // Least recently synced first, so no account is always left for last.
   const { data: connections, error } = await admin
     .from("pos_connections")
