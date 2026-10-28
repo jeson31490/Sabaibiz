@@ -12,7 +12,7 @@ export type L2 = {
   why: { title: string; items: { t: string; d: string }[] };
   steps: { title: string; intro: string; items: { t: string; d: string }[]; tags: [string, string, string]; ui: { product: string; qty: string; price: string; read: string; check: string; sales: string; purchases: string; result: string; confirm: string; invoice: string } };
   connector: { badge: string; title: string; text: string; ask: string; answer: string; works: string; logos: string[] };
-  pricing: { title: string; intro: string; monthly: string; yearly: string; save: string; perMonth: string; popular: string; soon: string; newTag: string; cta: string; pay: string; yearlyNote: string };
+  pricing: { title: string; intro: string; monthly: string; yearly: string; save: string; perMonth: string; popular: string; soon: string; newTag: string; cta: string; pay: string; yearlyNote: string; regionNote: string };
   security: { title: string; items: { n: string; t: string; d: string }[] };
   final: { title: string; text: string; cta: string };
   footer: { rights: string; faq: string; privacy: string; terms: string };
@@ -83,7 +83,7 @@ const en: L2 = {
     logos: ["Claude", "ChatGPT", "Gemini"],
   },
   pricing: {
-    title: "Simple prices, in baht",
+    title: "Simple prices",
     intro: "Start free. Pay only when you want more. Employees are always free.",
     monthly: "Monthly",
     yearly: "Yearly",
@@ -95,6 +95,7 @@ const en: L2 = {
     cta: "Start free",
     pay: "Pay with",
     yearlyNote: "billed yearly",
+    regionNote: "Prices shown for your region. The price you pay follows your billing country at checkout.",
   },
   security: {
     title: "Your numbers stay yours",
@@ -173,7 +174,7 @@ const th: L2 = {
     logos: ["Claude", "ChatGPT", "Gemini"],
   },
   pricing: {
-    title: "ราคาง่ายๆ เป็นบาท",
+    title: "ราคาง่ายๆ",
     intro: "เริ่มฟรี จ่ายเมื่อต้องการมากขึ้น พนักงานใช้ฟรีเสมอ",
     monthly: "รายเดือน",
     yearly: "รายปี",
@@ -185,6 +186,7 @@ const th: L2 = {
     cta: "เริ่มฟรี",
     pay: "จ่ายด้วย",
     yearlyNote: "เรียกเก็บรายปี",
+    regionNote: "ราคาที่แสดงเป็นของภูมิภาคคุณ ราคาที่จ่ายจริงขึ้นกับประเทศที่อยู่ใบเสร็จตอนชำระเงิน",
   },
   security: {
     title: "ตัวเลขของคุณเป็นของคุณ",
@@ -263,7 +265,7 @@ const fr: L2 = {
     logos: ["Claude", "ChatGPT", "Gemini"],
   },
   pricing: {
-    title: "Des prix simples, en bahts",
+    title: "Des prix simples",
     intro: "Commencez gratuitement. Payez seulement quand il vous en faut plus. Les employés sont toujours gratuits.",
     monthly: "Mensuel",
     yearly: "Annuel",
@@ -275,6 +277,7 @@ const fr: L2 = {
     cta: "Commencer gratuitement",
     pay: "Payer avec",
     yearlyNote: "facturé à l'année",
+    regionNote: "Prix affichés pour votre région. Le prix payé dépend du pays de facturation au moment du paiement.",
   },
   security: {
     title: "Vos chiffres restent à vous",
@@ -353,7 +356,7 @@ const ru: L2 = {
     logos: ["Claude", "ChatGPT", "Gemini"],
   },
   pricing: {
-    title: "Простые цены в батах",
+    title: "Простые цены",
     intro: "Начните бесплатно. Платите, только когда нужно больше. Сотрудники всегда бесплатно.",
     monthly: "Помесячно",
     yearly: "На год",
@@ -365,6 +368,7 @@ const ru: L2 = {
     cta: "Начать бесплатно",
     pay: "Оплата",
     yearlyNote: "оплата за год",
+    regionNote: "Цены показаны для вашего региона. Итоговая цена зависит от страны выставления счёта при оплате.",
   },
   security: {
     title: "Ваши цифры остаются вашими",

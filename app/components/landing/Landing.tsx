@@ -6,6 +6,7 @@ import AiLogo from "./AiLogo";
 import FeatureTabs from "./FeatureTabs";
 import HubDiagram from "./HubDiagram";
 import PlanSection from "./PlanSection";
+import RegionBanner from "./RegionBanner";
 import { Wordmark } from "./SabaiMark";
 import { StepVisual, WhyIcon, whyColor } from "./Visuals";
 
@@ -20,6 +21,7 @@ export default function Landing({ lang }: { lang: Lang }) {
 
   return (
     <div lang={t.htmlLang} className="bg-[#031B1C] font-sans text-[#F4EBD8]">
+      <RegionBanner lang={lang} />
 
       <header className="sticky top-0 z-50 border-b border-[#19D3B5]/15 bg-[#031B1C]/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-3">
