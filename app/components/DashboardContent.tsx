@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   bangkokToday,
   fetchCostsForPeriod,
@@ -15,6 +15,7 @@ import {
 } from "../../lib/invoices";
 import { isPeriodId, PERIODS, resolvePeriod, type PeriodId, type ResolvedPeriod } from "../../lib/periods";
 import { countIngredientsNeedingReview } from "../../lib/ingredients";
+import { fetchLoyverseStatus, syncLoyverse } from "../../lib/pos";
 import { fetchPeriodSales, type PeriodSales } from "../../lib/sales";
 import { useUser } from "../context/UserContext";
 import { inputClass, labelClass } from "./FormField";
@@ -40,6 +41,9 @@ const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit" });
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
+const AUTO_SYNC_EVERY_MS = 3 * 60 * 1000;
+const AUTO_SYNC_MIN_AGE_MS = 2 * 60 * 1000;
+
 type Loadable<T> = T | "loading" | "error";
 type Costs = { total: number; count: number };
 
@@ -48,7 +52,7 @@ function revenueCard(sales: Loadable<PeriodSales>, period: ResolvedPeriod): { va
   if (sales === "loading") return { value: "…", note: "Loading" };
   if (sales === "error") return { value: "—", note: "Sales are unavailable right now" };
   if (!sales.connected) return { value: "—", note: "Connect Loyverse in Settings to see your sales" };
-  if (!sales.synced) return { value: "—", note: "Not synced yet for this period. Use “Sync sales now” in Settings." };
+  if (!sales.synced) return { value: "—", note: "Importing your till sales… this can take a minute." };
 
   let comparison = `nothing to compare ${period.comparisonLabel}`;
   if (sales.previousRevenue > 0) {
@@ -157,6 +161,48 @@ export default function DashboardContent() {
 
   // Loaded on their own and per period, so a Loyverse problem never hides the invoices.
   // Tagged with the period they belong to, so a slow answer never shows under another period.
+  // Loyverse sales are imported by themselves: when the dashboard opens, then every few minutes while it
+  // stays open and each time you come back to the tab. "refresh" re-reads the figures after an import.
+  const [refresh, setRefresh] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const syncBusy = useRef(false);
+  const autoSync = useCallback(async () => {
+    if (syncBusy.current) return;
+    syncBusy.current = true;
+    try {
+      const status = await fetchLoyverseStatus();
+      if (!status) return;
+      const last = status.lastSyncedAt ? new Date(status.lastSyncedAt).getTime() : 0;
+      if (Date.now() - last < AUTO_SYNC_MIN_AGE_MS) return;
+      setSyncing(true);
+      for (let round = 1; round <= 5; round++) {
+        const result = await syncLoyverse();
+        setRefresh((n) => n + 1);
+        if (result.complete) break;
+      }
+    } catch {
+      // Best effort: the manual "Sync sales now" in Settings still explains what went wrong.
+    } finally {
+      syncBusy.current = false;
+      setSyncing(false);
+    }
+  }, []);
+  useEffect(() => {
+    const first = setTimeout(() => void autoSync(), 0);
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") void autoSync();
+    }, AUTO_SYNC_EVERY_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void autoSync();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearTimeout(first);
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [autoSync]);
+
   const [figures, setFigures] = useState<{ key: string; sales: Loadable<PeriodSales>; costs: Loadable<Costs> } | null>(null);
 
   useEffect(() => {
@@ -171,7 +217,7 @@ export default function DashboardContent() {
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, [period, refresh]);
 
   // "5 products need review" (Ingredients): shown only when there are some.
   const [toReview, setToReview] = useState(0);
@@ -243,9 +289,9 @@ export default function DashboardContent() {
     {
       id: "till",
       title: "Loyverse till",
-      sub: salesOn ? "Connected" : "Not connected",
+      sub: syncing ? "Syncing…" : salesOn ? "Connected · auto-sync" : "Not connected",
       detail: salesOn
-        ? "Your till sales land here by themselves, ticket by ticket."
+        ? "Your till sales land here by themselves, ticket by ticket. No need to sync by hand."
         : "Connect your till to see revenue and your real result for the day.",
       cta: { label: salesOn ? "Open settings" : "Connect Loyverse", href: "/dashboard/settings/pos-connection" },
     },
