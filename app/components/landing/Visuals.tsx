@@ -140,71 +140,100 @@ export function TabVisual({ i }: { i: number }) {
 
 export const STEP_COLORS = [TEAL, GOLD, CHILI];
 
-/** Steps: camera, check, number. Each sits in a tinted panel. */
-export function StepVisual({ i }: { i: number }) {
+type StepUi = { product: string; qty: string; price: string; read: string; check: string; sales: string; purchases: string; result: string; confirm: string; invoice: string };
+
+/** Steps: a connected story. The same invoice (Makro, 2,229 ฿) goes from photo → read lines → day result. */
+export function StepVisual({ i, tag, ui }: { i: number; tag: string; ui: StepUi }) {
   const c = STEP_COLORS[i];
+  const lines: [string, string, string][] = [
+    ["Milk 1L", "12", "684"],
+    ["Eggs", "30", "255"],
+    ["Olive oil 5L", "1", "1,290"],
+  ];
   return (
     <div
-      className="relative flex h-60 items-center justify-center overflow-hidden rounded-2xl border"
-      style={{ borderColor: `${c}40`, background: `radial-gradient(circle at 50% 30%, ${c}30, #031B1C 70%)` }}
+      className="relative flex h-[22.5rem] flex-col overflow-hidden rounded-2xl border p-4"
+      style={{ borderColor: `${c}40`, background: `radial-gradient(circle at 50% 0%, ${c}28, #031B1C 75%)` }}
     >
-      <span className="absolute right-4 top-1 font-display text-8xl font-extrabold" style={{ color: `${c}22` }}>
-        {i + 1}
+      <span className="inline-block rounded-full px-3 py-1 font-plex text-[11px] font-bold text-[#031B1C]" style={{ background: c }}>
+        {tag}
       </span>
-      {i === 0 && (
-        <div className="relative flex h-44 w-32 items-center justify-center rounded-[28px] border-2 bg-[#031B1C]" style={{ borderColor: c }}>
-          <div className="relative h-28 w-20 rounded-lg bg-[#F4EBD8] p-2">
-            <div className="h-2 w-10 rounded bg-[#031B1C]/70" />
-            {[0, 1, 2, 3, 4].map((n) => (
-              <div key={n} className="mt-2 h-1.5 rounded bg-[#031B1C]/25" style={{ width: `${95 - (n % 3) * 20}%` }} />
+      <div className="mt-3 flex flex-1 items-center justify-center">
+        {i === 0 && (
+          <div className="relative w-52 rounded-[26px] border-2 bg-[#031B1C] p-3 pb-9" style={{ borderColor: c }}>
+            <div className="relative rounded-lg bg-[#F4EBD8] p-3 text-[#031B1C]">
+              <div className="flex items-center justify-between">
+                <span className="font-display text-sm font-extrabold">MAKRO</span>
+                <span className="font-plex text-[9px] tracking-widest">{ui.invoice}</span>
+              </div>
+              <div className="mt-2 space-y-1.5 border-t border-[#031B1C]/20 pt-2 font-plex text-[10px]">
+                {lines.map(([n, q, v]) => (
+                  <div key={n} className="flex justify-between">
+                    <span>{n} ×{q}</span>
+                    <span>{v}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 flex justify-between border-t border-[#031B1C]/20 pt-1.5 font-plex text-[11px] font-bold">
+                <span>TOTAL</span>
+                <span>2,229</span>
+              </div>
+              <div className="absolute inset-x-0 h-0.5 animate-[scan_2.6s_ease-in-out_infinite]" style={{ background: c, boxShadow: `0 0 12px 3px ${c}` }} />
+            </div>
+            {[["left-1.5 top-1.5", "border-l-2 border-t-2"], ["right-1.5 top-1.5", "border-r-2 border-t-2"], ["left-1.5 bottom-10", "border-l-2 border-b-2"], ["right-1.5 bottom-10", "border-r-2 border-b-2"]].map(([pos, b]) => (
+              <span key={pos} className={`absolute h-4 w-4 ${pos} ${b}`} style={{ borderColor: c }} />
             ))}
-            <div className="absolute inset-x-0 h-0.5 animate-[scan_2.6s_ease-in-out_infinite]" style={{ background: c, boxShadow: `0 0 12px 3px ${c}` }} />
+            <span className="absolute bottom-2 left-1/2 flex h-7 w-7 -translate-x-1/2 items-center justify-center rounded-full border-2 border-[#F4EBD8]/80">
+              <span className="h-4 w-4 rounded-full" style={{ background: GOLD }} />
+            </span>
           </div>
-          {[["left-2 top-2", "border-l-2 border-t-2"], ["right-2 top-2", "border-r-2 border-t-2"], ["left-2 bottom-8", "border-l-2 border-b-2"], ["right-2 bottom-8", "border-r-2 border-b-2"]].map(([pos, b]) => (
-            <span key={pos} className={`absolute h-4 w-4 ${pos} ${b}`} style={{ borderColor: c }} />
-          ))}
-          <span className="absolute -bottom-4 flex h-10 w-10 items-center justify-center rounded-full border-4 border-[#072A2B] text-[#031B1C]" style={{ background: GOLD }}>
-            ●
-          </span>
-        </div>
-      )}
-      {i === 1 && (
-        <div className="w-60 space-y-2">
-          {[["Milk 1L ×12", "684", false], ["Eggs ×30", "255", false], ["Olive oil 5L", "1,290", true]].map(([n, v, edit]) => (
-            <div
-              key={String(n)}
-              className="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm"
-              style={edit ? { background: `${c}22`, border: `1.5px solid ${c}` } : { background: "#031B1C" }}
-            >
-              <span>{n}</span>
-              <span className="font-bold" style={{ color: edit ? c : TEAL }}>
-                {v} ฿ {edit ? "✎" : "✓"}
-              </span>
+        )}
+        {i === 1 && (
+          <div className="w-full max-w-xs">
+            <p className="mb-2 font-plex text-[11px] text-[#F4EBD8]/70">MAKRO · {ui.read}</p>
+            <div className="overflow-hidden rounded-xl bg-[#031B1C] text-sm">
+              <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-3.5 py-2 font-plex text-[10px] tracking-wider text-[#F4EBD8]/50">
+                <span>{ui.product.toUpperCase()}</span>
+                <span>{ui.qty.toUpperCase()}</span>
+                <span className="w-14 text-right">{ui.price.toUpperCase()}</span>
+              </div>
+              {lines.map(([n, q, v], k) => (
+                <div
+                  key={n}
+                  className="grid grid-cols-[1fr_auto_auto] gap-x-4 border-t border-[#F4EBD8]/10 px-3.5 py-2.5"
+                  style={k === 2 ? { background: `${c}22` } : undefined}
+                >
+                  <span>{n}</span>
+                  <span className="text-[#F4EBD8]/70">{q}</span>
+                  <span className="w-14 text-right font-bold">{v}</span>
+                </div>
+              ))}
             </div>
-          ))}
-          <div className="rounded-xl py-2.5 text-center font-display font-bold text-[#031B1C]" style={{ background: TEAL }}>
-            ✓ Save
-          </div>
-        </div>
-      )}
-      {i === 2 && (
-        <div className="w-60 space-y-3">
-          <div className="rounded-2xl bg-[#031B1C] p-4">
-            <p className="font-plex text-[11px] tracking-widest text-[#F4EBD8]/60">TODAY</p>
-            <div className="flex items-end justify-between">
-              <p className="font-display text-3xl font-extrabold" style={{ color: GOLD }}>12,220 ฿</p>
-              <span className="mb-1 font-plex text-xs font-bold" style={{ color: TEAL }}>▲ +8%</span>
+            <p className="mt-2 rounded-lg px-3 py-1.5 text-xs font-semibold" style={{ background: `${c}22`, color: c }}>
+              ⚠ Olive oil 5L · {ui.check}
+            </p>
+            <div className="mt-2 rounded-xl py-2.5 text-center font-display font-bold text-[#031B1C]" style={{ background: TEAL }}>
+              ✓ {ui.confirm}
             </div>
-            <svg viewBox="0 0 200 40" className="mt-2 w-full" aria-hidden>
-              <path d="M0 32 L30 28 L60 30 L90 20 L120 24 L150 12 L200 6" fill="none" stroke={GOLD} strokeWidth="2.500" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
           </div>
-          <div className="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm" style={{ background: `${CHILI}22`, border: `1px solid ${CHILI}66` }}>
-            <span>Olive oil</span>
-            <span className="font-bold" style={{ color: CHILI }}>▲ 9%</span>
+        )}
+        {i === 2 && (
+          <div className="w-full max-w-xs space-y-2">
+            <div className="flex items-center justify-between rounded-xl bg-[#031B1C] px-4 py-3">
+              <span className="text-sm text-[#F4EBD8]/75">{ui.sales}</span>
+              <span className="font-bold text-[#19D3B5]">+12,220 ฿</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-[#031B1C] px-4 py-3">
+              <span className="text-sm text-[#F4EBD8]/75">{ui.purchases}</span>
+              <span className="font-bold" style={{ color: CHILI }}>−2,229 ฿</span>
+            </div>
+            <div className="rounded-xl px-4 py-3" style={{ background: `${GOLD}22`, border: `1.5px solid ${GOLD}` }}>
+              <p className="text-xs text-[#F4EBD8]/75">{ui.result}</p>
+              <p className="font-display text-3xl font-extrabold" style={{ color: GOLD }}>9,991 ฿</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

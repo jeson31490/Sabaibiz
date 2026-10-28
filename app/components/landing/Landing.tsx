@@ -134,7 +134,7 @@ export default function Landing({ lang }: { lang: Lang }) {
               {t.steps.items.map((it, i) => (
                 <li key={it.t} className="relative rounded-3xl border border-[#19D3B5]/20 bg-[#031B1C] p-5">
                   {i < 2 && <span className="absolute -right-4 top-28 z-10 hidden h-8 w-8 items-center justify-center rounded-full bg-[#E8B94A] font-bold text-[#031B1C] md:flex" aria-hidden>→</span>}
-                  <StepVisual i={i} />
+                  <StepVisual i={i} tag={t.steps.tags[i]} ui={t.steps.ui} />
                   <h3 className="mt-6 font-display text-2xl font-bold">{it.t}</h3>
                   <p className="mt-2 leading-relaxed text-[#F4EBD8]/75">{it.d}</p>
                 </li>
