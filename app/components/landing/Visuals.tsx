@@ -80,8 +80,8 @@ function PriceVisual() {
 function MarginVisual() {
   const rows: [string, number, string][] = [
     ["Latte", 74, TEAL],
-    ["Pad Thai", 62, GOLD],
-    ["Linen shirt", 68, TEAL],
+    ["Pad Thai", 68, TEAL],
+    ["Green curry", 59, GOLD],
     ["Cheesecake", 41, CHILI],
   ];
   return (
@@ -221,7 +221,7 @@ export function StepVisual({ i, tag, ui }: { i: number; tag: string; ui: StepUi 
           <div className="w-full max-w-xs space-y-2">
             <div className="flex items-center justify-between rounded-xl bg-[#031B1C] px-4 py-3">
               <span className="text-sm text-[#F4EBD8]/75">{ui.sales}</span>
-              <span className="font-bold text-[#19D3B5]">+12,220 ฿</span>
+              <span className="font-bold text-[#19D3B5]">+48,500 ฿</span>
             </div>
             <div className="flex items-center justify-between rounded-xl bg-[#031B1C] px-4 py-3">
               <span className="text-sm text-[#F4EBD8]/75">{ui.purchases}</span>
@@ -229,7 +229,7 @@ export function StepVisual({ i, tag, ui }: { i: number; tag: string; ui: StepUi 
             </div>
             <div className="rounded-xl px-4 py-3" style={{ background: `${GOLD}22`, border: `1.5px solid ${GOLD}` }}>
               <p className="text-xs text-[#F4EBD8]/75">{ui.result}</p>
-              <p className="font-display text-3xl font-extrabold" style={{ color: GOLD }}>9,991 ฿</p>
+              <p className="font-display text-3xl font-extrabold" style={{ color: GOLD }}>46,271 ฿</p>
             </div>
           </div>
         )}

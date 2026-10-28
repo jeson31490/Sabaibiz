@@ -2,7 +2,7 @@ import type { L2 } from "../../../lib/landing2";
 import { SabaiCurve } from "./SabaiMark";
 
 const SRC_Y = [60, 160, 260, 360];
-const OUT_Y = [60, 160, 260, 360];
+const OUT_Y = [50, 135, 220, 305, 390];
 
 /** Small generic icons (24×24), drawn in teal. Loyverse uses its real logo (live integration); no third-party logos otherwise. */
 function SourceIcon({ i, x, y }: { i: number; x: number; y: number }) {
@@ -41,10 +41,11 @@ function SourceIcon({ i, x, y }: { i: number; x: number; y: number }) {
 export default function HubDiagram({ t }: { t: L2["hub"] }) {
   const sources = [t.invoice, t.till, t.grab, t.line];
   const outputs = [
-    { a: t.today, b: "12,220 ฿", c: "#E8B94A" },
-    { a: t.alert, b: t.alertV, c: "#FF8A6E" },
-    { a: t.margin, b: t.marginV, c: "#19D3B5" },
-    { a: t.archive, b: "", c: "#F4EBD8" },
+    { a: t.revenue, b: "184,300 ฿", c: "#19D3B5" },
+    { a: t.costs, b: "61,850 ฿", c: "#FF8A6E" },
+    { a: t.result, b: "122,450 ฿", c: "#E8B94A" },
+    { a: t.alert, b: t.alertV, c: "#F4EBD8" },
+    { a: t.review, b: t.reviewV, c: "#E8B94A" },
   ];
   return (
     <div>
@@ -101,7 +102,7 @@ export default function HubDiagram({ t }: { t: L2["hub"] }) {
         })}
         {outputs.map((o, i) => (
           <g key={o.a}>
-            <rect x="685" y={OUT_Y[i] - 30} width="200" height="60" rx="14" fill="#072A2B" stroke={o.c} strokeOpacity="0.55" />
+            <rect x="685" y={OUT_Y[i] - 32} width="200" height="64" rx="14" fill="#072A2B" stroke={o.c} strokeOpacity="0.55" />
             <text x="701" y={OUT_Y[i] - 8} fill="#F4EBD8" fillOpacity="0.7" fontSize="12" fontFamily="var(--font-plex), monospace">
               {o.a}
             </text>
