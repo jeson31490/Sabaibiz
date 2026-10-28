@@ -2,6 +2,7 @@ import Link from "next/link";
 import { L2_COPY, LANG_LABEL, LANG_PATH } from "../../../lib/landing2";
 import type { Lang } from "../../../lib/landingCopy";
 import { CONTACT_EMAIL } from "../../../lib/site";
+import AiLogo from "./AiLogo";
 import FeatureTabs from "./FeatureTabs";
 import HubDiagram from "./HubDiagram";
 import PlanSection from "./PlanSection";
@@ -18,7 +19,6 @@ export default function Landing({ lang }: { lang: Lang }) {
 
   return (
     <div lang={t.htmlLang} className="bg-[#031B1C] font-sans text-[#F4EBD8]">
-      <div className="bg-[#E8B94A] px-4 py-2 text-center font-plex text-xs font-medium text-[#031B1C]">{t.announce}</div>
 
       <header className="sticky top-0 z-50 border-b border-[#19D3B5]/15 bg-[#031B1C]/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-3">
@@ -124,30 +124,20 @@ export default function Landing({ lang }: { lang: Lang }) {
           </ul>
         </section>
 
-        {/* Bring your own AI */}
-        <section className="bg-[#BFF3E8] text-[#031B1C]">
-          <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 sm:py-20 md:grid-cols-2">
-            <div>
-              <span className="rounded-full bg-[#031B1C] px-3 py-1 font-plex text-[11px] font-bold text-[#19D3B5]">{t.byo.badge}</span>
-              <h2 className="mt-4 font-display text-3xl font-extrabold sm:text-4xl">{t.byo.title}</h2>
-              <p className="mt-3 text-[#031B1C]/75">{t.byo.text}</p>
-              <ol className="mt-6 space-y-3">
-                {t.byo.steps.map((s, i) => (
-                  <li key={s} className="flex items-center gap-3 font-semibold">
-                    <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#031B1C] font-plex text-sm text-[#19D3B5]">{i + 1}</span>
-                    {s}
-                  </li>
-                ))}
-              </ol>
-            </div>
-            <div className="self-center rounded-3xl bg-[#031B1C] p-6 text-[#F4EBD8] shadow-xl">
-              <p className="font-plex text-xs text-[#F4EBD8]/60">sk-ant-••••••••••••••a7Qx</p>
-              <p className="mt-3 flex items-center gap-2 font-display text-xl font-bold">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#19D3B5]" />
-                {t.byo.card}
-              </p>
-              <p className="mt-1 text-[#E8B94A]">{t.byo.cardNote}</p>
-            </div>
+        {/* How it works */}
+        <section className="bg-[#072A2B]">
+          <div className="mx-auto max-w-6xl px-5 py-16 sm:py-20">
+            <h2 className="text-center font-display text-3xl font-extrabold sm:text-5xl">{t.steps.title}</h2>
+            <p className="mx-auto mt-3 max-w-2xl text-center text-lg text-[#F4EBD8]/75">{t.steps.intro}</p>
+            <ol className="mt-12 grid gap-5 md:grid-cols-3">
+              {t.steps.items.map((it, i) => (
+                <li key={it.t} className="rounded-3xl border border-[#19D3B5]/20 bg-[#031B1C] p-7">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#19D3B5] font-display text-lg font-extrabold text-[#031B1C]">{i + 1}</span>
+                  <h3 className="mt-5 font-display text-2xl font-bold">{it.t}</h3>
+                  <p className="mt-2 leading-relaxed text-[#F4EBD8]/75">{it.d}</p>
+                </li>
+              ))}
+            </ol>
           </div>
         </section>
 
@@ -166,7 +156,8 @@ export default function Landing({ lang }: { lang: Lang }) {
             <p className="text-center font-plex text-xs tracking-widest text-[#F4EBD8]/60">{t.connector.works.toUpperCase()}</p>
             <ul className="mt-4 flex flex-wrap items-center justify-center gap-3 sm:gap-5">
               {t.connector.logos.map((n) => (
-                <li key={n} className="rounded-full border border-[#F4EBD8]/20 bg-[#072A2B] px-6 py-3 font-display text-lg font-bold tracking-tight sm:text-2xl">
+                <li key={n} className="flex items-center gap-3 rounded-full border border-[#F4EBD8]/20 bg-[#072A2B] px-6 py-3 font-display text-lg font-bold tracking-tight sm:text-2xl">
+                  <AiLogo name={n} />
                   {n}
                 </li>
               ))}
