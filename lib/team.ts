@@ -183,3 +183,20 @@ export async function syncMembership(): Promise<{ role: TeamRole; canScan: boole
   const body = (await res.json().catch(() => null)) as { membership: { role: TeamRole; canScan: boolean } | null } | null;
   return body?.membership ?? null;
 }
+
+export type TeamPerson = {
+  userId: string;
+  name: string;
+  email: string;
+  role: "owner" | "manager" | "employee";
+  avatarUrl: string | null;
+};
+
+/** Names and photos of the business's people (server side: accounts can't be read from the browser). Owner and managers. */
+export async function fetchTeamPeople(): Promise<TeamPerson[]> {
+  const { data } = await supabase.auth.getSession();
+  const res = await fetch("/api/team/people", { headers: { Authorization: `Bearer ${data.session?.access_token ?? ""}` } });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.error ?? "We couldn't load your team.");
+  return (body.people ?? []) as TeamPerson[];
+}

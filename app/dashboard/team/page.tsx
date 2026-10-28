@@ -22,6 +22,9 @@ import {
 import { bangkokToday } from "../../../lib/invoices";
 import type { AppNotification } from "../../../lib/notifications";
 import { fetchTeamNames } from "../../../lib/teamNames";
+import { fetchTeamPeople, type TeamPerson } from "../../../lib/team";
+import Avatar from "../../components/Avatar";
+import TeamProfile, { ZoneBadge } from "../../components/TeamProfile";
 import { useLiveReload } from "../../../lib/useLiveReload";
 import { useNotifications } from "../../../lib/useNotifications";
 
@@ -31,6 +34,7 @@ type Overview = {
   absences: Absence[];
   /** user id -> label */
   names: Map<string, string>;
+  people: TeamPerson[];
 };
 
 type Load = { status: "loading" } | { status: "error"; message: string } | ({ status: "ready" } & Overview);
@@ -43,12 +47,15 @@ const fmtHours = (minutes: number) => `${Math.floor(minutes / 60)}h ${String(Mat
 
 async function loadOverview(): Promise<Overview> {
   const today = bangkokToday();
-  const [shifts, absences, names] = await Promise.all([
+  const [shifts, absences, names, people] = await Promise.all([
     fetchBusinessShifts(shiftDay(today, -6)),
     fetchBusinessAbsences(shiftDay(today, -7)),
     fetchTeamNames(),
+    fetchTeamPeople().catch(() => [] as TeamPerson[]),
   ]);
-  return { today, shifts, absences, names };
+  // Real names (when people have set one) win over invitation e-mails.
+  for (const p of people) names.set(p.userId, p.name);
+  return { today, shifts, absences, names, people };
 }
 
 // Attendance and declared absences for the owner and managers, kept live. Employees are sent back to
@@ -100,7 +107,7 @@ export default function TeamPage() {
     <div className="min-h-screen pb-16">
       <DashboardNavbar />
       <main className="mx-auto max-w-5xl px-6 py-8">
-        <h1 className="text-2xl font-bold tracking-tight text-teal-950 sm:text-3xl">Team</h1>
+        <h1 className="font-display text-3xl font-extrabold tracking-tight text-teal-950 sm:text-4xl">Team</h1>
         <p className="mt-1 text-sm text-teal-900/65">Who is in today, hours this week, and declared absences.</p>
 
         {(role === null || load.status === "loading") && role !== "employee" && (
@@ -126,10 +133,12 @@ function TeamContent({
   shifts,
   absences,
   names,
+  people,
   notifications,
   onMarkAllRead,
 }: Overview & { notifications: AppNotification[]; onMarkAllRead: () => void }) {
   const nameOf = (id: string) => names.get(id) ?? "Former team member";
+  const [openPerson, setOpenPerson] = useState<TeamPerson | null>(null);
 
   const todayShifts = shifts.filter((s) => bangkokDayOf(s.clockIn) === today || !s.clockOut);
   const stillIn = shifts.filter((s) => !s.clockOut);
@@ -143,9 +152,38 @@ function TeamContent({
   const recent = absences.filter((a) => a.endDate < today).reverse();
 
   const unread = notifications.filter((n) => !n.readAt);
+  const inNow = new Set(stillIn.map((s) => s.employeeId));
+  const awayToday = new Set(current.filter((a) => a.startDate <= today).map((a) => a.employeeId));
 
   return (
     <>
+      {people.length > 0 && (
+        <section aria-label="Your team" className="mt-8">
+          <ul className="flex flex-wrap gap-x-6 gap-y-4">
+            {people.map((p) => {
+              const status = inNow.has(p.userId) ? "In" : awayToday.has(p.userId) ? "Away" : "";
+              return (
+                <li key={p.userId}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenPerson(p)}
+                    className="group flex w-20 flex-col items-center text-center focus-visible:outline-none"
+                    aria-label={`Open ${p.name}'s profile`}
+                  >
+                    <Avatar name={p.name} url={p.avatarUrl} size={64} ring={inNow.has(p.userId) ? "#19D3B5" : awayToday.has(p.userId) ? "#E8B94A" : "rgba(244,235,216,0.18)"} />
+                    <span className="mt-2 w-full truncate text-sm font-medium text-teal-950 group-hover:underline">{p.name}</span>
+                    <span className={`text-xs ${status === "In" ? "text-teal-400" : status === "Away" ? "text-gold-500" : "text-teal-900/50"}`}>
+                      {status || (p.role === "owner" ? "Owner" : p.role === "manager" ? "Manager" : "—")}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+      {openPerson && <TeamProfile person={openPerson} onClose={() => setOpenPerson(null)} />}
+
       {unread.length > 0 && (
         <section aria-label="New declarations" className="mt-8 rounded-2xl border border-gold-500/40 bg-gold-50 shadow-card">
           <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-5">
@@ -230,8 +268,8 @@ function TeamContent({
                 {[...todayShifts].reverse().map((s) => (
                   <tr key={s.id}>
                     <td className="px-6 py-3 font-medium text-teal-950">{nameOf(s.employeeId)}</td>
-                    <td className="px-6 py-3 text-teal-900/80">{fmtClock(s.clockIn)}</td>
-                    <td className="px-6 py-3 text-teal-900/80">{s.clockOut ? fmtClock(s.clockOut) : "Still in"}</td>
+                    <td className="px-6 py-3 text-teal-900/80">{fmtClock(s.clockIn)}<ZoneBadge zone={s.clockInZone} /></td>
+                    <td className="px-6 py-3 text-teal-900/80">{s.clockOut ? fmtClock(s.clockOut) : "Still in"}<ZoneBadge zone={s.clockOutZone} /></td>
                     <td className="px-6 py-3 text-teal-900/60">{shiftDuration(s)}</td>
                   </tr>
                 ))}

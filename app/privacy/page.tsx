@@ -17,8 +17,15 @@ export default function PrivacyPage() {
           <li>Business details you enter: business name, suppliers, ingredients, recipes and the team members you invite.</li>
           <li>Invoices: the photos or PDF files you upload, and the data read from them (supplier, date, products, quantities, prices).</li>
           <li>Sales data from your till, if you connect one (for example Loyverse). Your till access key is stored encrypted.</li>
+          <li>Your daily takings, if you type them in or photograph your till&apos;s end-of-day receipt (the photo is read and not kept).</li>
+          <li>Team attendance: clock-in and clock-out times and declared absences. If the owner switches on the workplace zone check, we also keep a result for each clock-in or clock-out: &ldquo;in zone&rdquo;, &ldquo;out of zone&rdquo; or &ldquo;location not shared&rdquo;. Your phone&apos;s position is used once, at that moment, to work out the result; the position itself is never stored. These results are erased after 3 months.</li>
+          <li>Payroll details the owner enters about staff (name, salary, bonus), and, if you add one, your own Anthropic API key (stored encrypted).</li>
           <li>Technical data needed to run the service, such as your sign-in session in your browser and error reports.</li>
         </ul>
+        <p>
+          The business owner decides which team features are used and is responsible for informing their team about them.
+          SabaiBiz provides the notice shown on the clock-in screen when the zone check is on.
+        </p>
         <p>Invoices can contain the names and details of your suppliers and, sometimes, of other people. Upload only what you need.</p>
       </Section>
 
