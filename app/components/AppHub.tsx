@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import SabaiMark from "./landing/SabaiMark";
+import { SabaiCurve } from "./landing/SabaiMark";
 
 export type HubSource = {
   id: string;
@@ -101,13 +101,13 @@ export default function AppHub({ sources, outputs }: { sources: HubSource[]; out
 
         {/* The mark sits on the sphere. */}
         <div className="pointer-events-none absolute flex items-center justify-center" style={{ left: pct(CX - 60, W), top: pct(CY - 60, H), width: pct(120, W), height: pct(120, H) }}>
-          <SabaiMark size={74} id="hub" />
+          <SabaiCurve size={100} id="hub" />
         </div>
         <div
-          className="pointer-events-none absolute text-center font-display text-lg font-extrabold text-[#F4EBD8]"
+          className="pointer-events-none absolute text-center text-lg font-bold tracking-tight text-[#F4EBD8]"
           style={{ left: pct(CX - 80, W), top: pct(CY + 42, H), width: pct(160, W) }}
         >
-          Sabai<span className="text-[#E8B94A]">Biz</span>
+          Sabai<span className="text-[#F2B84B]">Biz</span>
         </div>
 
         {sources.map((s, i) => (
@@ -154,9 +154,9 @@ export default function AppHub({ sources, outputs }: { sources: HubSource[]; out
       {/* Phones and tablets: sources, then results. */}
       <div className="lg:hidden">
         <div className="flex items-center justify-center gap-2 pb-4">
-          <SabaiMark size={34} id="hub-sm" />
-          <span className="font-display text-xl font-extrabold text-[#F4EBD8]">
-            Sabai<span className="text-[#E8B94A]">Biz</span>
+          <SabaiCurve size={34} id="hub-sm" />
+          <span className="text-xl font-bold tracking-tight text-[#F4EBD8]">
+            Sabai<span className="text-[#F2B84B]">Biz</span>
           </span>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">

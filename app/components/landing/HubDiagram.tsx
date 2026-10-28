@@ -1,5 +1,5 @@
 import type { L2 } from "../../../lib/landing2";
-import SabaiMark from "./SabaiMark";
+import { SabaiCurve } from "./SabaiMark";
 
 const SRC_Y = [60, 160, 260, 360];
 const OUT_Y = [60, 160, 260, 360];
@@ -75,11 +75,11 @@ export default function HubDiagram({ t }: { t: L2["hub"] }) {
           <animateTransform attributeName="transform" type="rotate" from="0 450 220" to="360 450 220" dur="40s" repeatCount="indefinite" />
         </circle>
         <circle cx="450" cy="220" r="66" fill="url(#sphere)" stroke="url(#ring)" strokeWidth="2" />
-        <g transform="translate(428 186)">
-          <SabaiMark size={44} id="hub" />
+        <g transform="translate(416 168)">
+          <SabaiCurve size={68} id="hub" />
         </g>
-        <text x="450" y="262" textAnchor="middle" fill="#F4EBD8" fontSize="15" fontWeight="800" fontFamily="var(--font-display), sans-serif">
-          Sabai<tspan fill="#E8B94A">Biz</tspan>
+        <text x="450" y="262" textAnchor="middle" fill="#F4EBD8" fontSize="15" fontWeight="700" fontFamily="Prompt, sans-serif" letterSpacing="-0.4">
+          Sabai<tspan fill="#F2B84B">Biz</tspan>
         </text>
       </svg>
 
@@ -93,8 +93,8 @@ export default function HubDiagram({ t }: { t: L2["hub"] }) {
         </div>
         <span className="text-[#19D3B5]">▼</span>
         <div className="flex h-28 w-28 flex-col items-center justify-center rounded-full border-2 border-[#19D3B5] bg-[radial-gradient(circle_at_38%_32%,#1E5F5B,#031B1C)]">
-          <SabaiMark size={40} id="hubm" />
-          <span className="mt-1 font-display text-sm font-extrabold text-[#F4EBD8]">Sabai<span className="text-[#E8B94A]">Biz</span></span>
+          <SabaiCurve size={40} id="hubm" />
+          <span className="mt-1 text-sm font-bold tracking-tight text-[#F4EBD8]">Sabai<span className="text-[#F2B84B]">Biz</span></span>
         </div>
         <span className="text-[#E8B94A]">▼</span>
         <div className="grid w-full grid-cols-2 gap-2">

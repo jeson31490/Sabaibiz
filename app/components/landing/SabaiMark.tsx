@@ -1,31 +1,52 @@
-/** The SabaiBiz mark: a ribbon "S" (teal to gold). Drawn in SVG so the page needs no image. */
+/** The SabaiBiz logo: a growth curve (teal to gold) rising to a gold point, on a dark rounded tile. Drawn in SVG so the page needs no image. */
 export default function SabaiMark({ size = 36, id = "m" }: { size?: number; id?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 120 120" aria-hidden="true">
       <defs>
-        <linearGradient id={`g-${id}`} x1="8" y1="6" x2="40" y2="42" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#19D3B5" />
-          <stop offset="1" stopColor="#E8B94A" />
+        <linearGradient id={`t-${id}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#0f5553" />
+          <stop offset="1" stopColor="#031b1c" />
+        </linearGradient>
+        <linearGradient id={`l-${id}`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#19c7b5" />
+          <stop offset="1" stopColor="#f7cf6c" />
         </linearGradient>
       </defs>
-      <path
-        d="M34 13C31 9.500 26.500 8 22 8C15.500 8 11.500 11.500 11.500 16C11.500 20.500 15.500 22 24 24.500C32.500 27 36.500 28.500 36.500 33C36.500 37.500 32 40.500 25.500 40.500C20.500 40.500 16 38.500 13 35"
-        fill="none"
-        stroke={`url(#g-${id})`}
-        strokeWidth="6"
-        strokeLinecap="round"
-      />
+      <rect x="1" y="1" width="118" height="118" rx="30" fill={`url(#t-${id})`} stroke="#1f7a75" strokeWidth="2" />
+      <path d="M20 76 H100 M20 52 H100" fill="none" stroke="#1c5553" strokeWidth="2" strokeLinecap="round" />
+      <path d="M20 100 H100" fill="none" stroke="#3a807c" strokeWidth="3" strokeLinecap="round" />
+      <path d="M20 86 C62 86 58 34 100 34" fill="none" stroke={`url(#l-${id})`} strokeWidth="10" strokeLinecap="round" />
+      <circle cx="100" cy="34" r="15" fill="#f2b84b" opacity="0.25" />
+      <circle cx="100" cy="34" r="9" fill="#f2b84b" />
     </svg>
   );
 }
 
-/** Mark + name. "Sabai" in cream, "Biz" in gold. */
+/** The curve and its gold point without the tile, for sitting on a dark sphere. */
+export function SabaiCurve({ size = 60, id = "c" }: { size?: number; id?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="10 20 110 90" aria-hidden="true" style={{ overflow: "visible" }}>
+      <defs>
+        <linearGradient id={`cl-${id}`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#19c7b5" />
+          <stop offset="1" stopColor="#f7cf6c" />
+        </linearGradient>
+      </defs>
+      <path d="M20 86 C62 86 58 34 100 34" fill="none" stroke={`url(#cl-${id})`} strokeWidth="10" strokeLinecap="round" />
+      <circle cx="100" cy="34" r="15" fill="#f2b84b" opacity="0.25" />
+      <circle cx="100" cy="34" r="9" fill="#f2b84b" />
+    </svg>
+  );
+}
+
+/** Logo + name, as in the brand pack: "Sabai" in cream (Prompt SemiBold), "Biz" in gold (Prompt Bold). */
 export function Wordmark({ size = 34, id = "w", className = "text-xl" }: { size?: number; id?: string; className?: string }) {
   return (
-    <span className="flex items-center gap-2">
+    <span className="flex items-center gap-2.5">
       <SabaiMark size={size} id={id} />
-      <span className={`font-display font-extrabold leading-none ${className}`}>
-        Sabai<span className="text-[#E8B94A]">Biz</span>
+      <span className={`font-sans leading-none tracking-[-0.03em] ${className}`}>
+        <span className="font-semibold">Sabai</span>
+        <span className="font-bold text-[#F2B84B]">Biz</span>
       </span>
     </span>
   );
