@@ -4,14 +4,19 @@ import Link from "next/link";
 import { useState } from "react";
 import type { L2 } from "../../../lib/landing2";
 import type { Lang } from "../../../lib/landingCopy";
-import { PLAN_ORDER, PLANS, monthlyPriceOnCycle } from "../../../lib/plans";
+import { PLAN_ORDER, PLANS } from "../../../lib/plans";
+import { ZONE_ORDER, ZONES, zonePrice } from "../../../lib/regions";
+import { useZone } from "../../../lib/useCountry";
 
 const THEME = { bg: "#072A2B", fg: "#F4EBD8", chip: "rgba(244,235,216,.14)" };
 
-const PAY = ["PromptPay QR", "Card", "TrueMoney Wallet", "Google Pay"];
+const PAY_TH = ["PromptPay QR", "Card", "TrueMoney Wallet", "Google Pay"];
+const PAY_WORLD = ["Card", "Apple Pay", "Google Pay"];
 
 export default function PlanSection({ t, lang, signup }: { t: L2["pricing"]; lang: Lang; signup: string }) {
   const [yearly, setYearly] = useState(false);
+  const { zone, choose } = useZone(lang === "fr" ? "eu" : "th");
+  const z = ZONES[zone];
   return (
     <div>
       <div className="flex justify-center">
@@ -30,11 +35,28 @@ export default function PlanSection({ t, lang, signup }: { t: L2["pricing"]; lan
         </div>
       </div>
 
-      <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-5 flex flex-col items-center gap-2">
+        <div role="group" aria-label="Currency" className="inline-flex flex-wrap justify-center gap-1 rounded-full border border-[#F4EBD8]/20 p-1 text-xs font-semibold">
+          {ZONE_ORDER.map((id) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={zone === id}
+              onClick={() => choose(id)}
+              className={`rounded-full px-3 py-1.5 ${zone === id ? "bg-[#19D3B5] text-[#031B1C]" : "text-[#F4EBD8]/80 hover:text-white"}`}
+            >
+              {ZONES[id].label}
+            </button>
+          ))}
+        </div>
+        <p className="max-w-md text-center text-xs text-[#F4EBD8]/60">{t.regionNote}</p>
+      </div>
+
+      <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {PLAN_ORDER.map((id) => {
           const plan = PLANS[id];
           const th = THEME;
-          const price = monthlyPriceOnCycle(plan, yearly ? "yearly" : "monthly");
+          const price = zonePrice(id, zone, yearly ? "yearly" : "monthly");
           return (
             <div
               key={id}
@@ -47,8 +69,9 @@ export default function PlanSection({ t, lang, signup }: { t: L2["pricing"]; lan
               <h3 className="font-display text-2xl font-extrabold">{plan.name}</h3>
               <p className="mt-1 min-h-10 text-sm opacity-80">{plan.tag[lang]}</p>
               <p className="mt-4 flex items-baseline gap-1">
+                {!z.after && <span className="text-2xl font-bold text-[#E8B94A]">{z.symbol}</span>}
                 <span className="font-display text-5xl font-extrabold tracking-tight text-[#E8B94A]">{price.toLocaleString("en-US")}</span>
-                <span className="text-xl font-bold text-[#E8B94A]">฿</span>
+                {z.after && <span className="text-xl font-bold text-[#E8B94A]">{z.symbol}</span>}
                 <span className="text-sm opacity-70">{t.perMonth}</span>
               </p>
               <p className="h-5 text-xs opacity-70">{yearly && price > 0 ? t.yearlyNote : ""}</p>
@@ -88,7 +111,7 @@ export default function PlanSection({ t, lang, signup }: { t: L2["pricing"]; lan
 
       <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
         <span className="mr-1 font-plex text-xs text-[#F4EBD8]/70">{t.pay}</span>
-        {PAY.map((p) => (
+        {(zone === "th" ? PAY_TH : PAY_WORLD).map((p) => (
           <span key={p} className="rounded-full border border-[#F4EBD8]/25 px-3 py-1 text-xs text-[#F4EBD8]">
             {p}
           </span>
