@@ -7,6 +7,7 @@ import FeatureTabs from "./FeatureTabs";
 import HubDiagram from "./HubDiagram";
 import PlanSection from "./PlanSection";
 import { Wordmark } from "./SabaiMark";
+import { StepVisual, WhyIcon, whyColor } from "./Visuals";
 
 const LANGS: Lang[] = ["en", "fr", "th", "ru"];
 
@@ -115,9 +116,9 @@ export default function Landing({ lang }: { lang: Lang }) {
           <h2 className="font-display text-3xl font-extrabold sm:text-5xl">{t.why.title}</h2>
           <ul className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {t.why.items.map((it, i) => (
-              <li key={it.t} className="rounded-3xl border border-[#19D3B5]/30 bg-[#072A2B] p-6">
-                <span className="font-plex text-sm font-medium text-[#19D3B5]">{String(i + 1).padStart(2, "0")}</span>
-                <h3 className="mt-2 font-display text-xl font-bold">{it.t}</h3>
+              <li key={it.t} className="rounded-3xl border bg-[#072A2B] p-6" style={{ borderColor: `${whyColor(i)}55` }}>
+                <WhyIcon i={i} />
+                <h3 className="mt-4 font-display text-xl font-bold" style={{ color: whyColor(i) }}>{it.t}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-[#F4EBD8]/75">{it.d}</p>
               </li>
             ))}
@@ -132,8 +133,11 @@ export default function Landing({ lang }: { lang: Lang }) {
             <ol className="mt-12 grid gap-5 md:grid-cols-3">
               {t.steps.items.map((it, i) => (
                 <li key={it.t} className="rounded-3xl border border-[#19D3B5]/20 bg-[#031B1C] p-7">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#19D3B5] font-display text-lg font-extrabold text-[#031B1C]">{i + 1}</span>
-                  <h3 className="mt-5 font-display text-2xl font-bold">{it.t}</h3>
+                  <div className="mb-6 flex h-40 items-center">
+                    <div className="w-full"><StepVisual i={i} /></div>
+                  </div>
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#19D3B5] font-display text-base font-extrabold text-[#031B1C]">{i + 1}</span>
+                  <h3 className="mt-4 font-display text-2xl font-bold">{it.t}</h3>
                   <p className="mt-2 leading-relaxed text-[#F4EBD8]/75">{it.d}</p>
                 </li>
               ))}
