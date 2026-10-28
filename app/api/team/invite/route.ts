@@ -83,13 +83,33 @@ async function deliverInvite(
     };
   }
 
-  const anon = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
-  const { error: resetError } = await anon.auth.resetPasswordForEmail(email, { redirectTo });
-  if (resetError) {
-    if (resetError.status === 429) {
-      return { ok: false, status: 429, message: "Too many emails sent. Please wait a little and try again." };
-    }
-    console.error("team/invite: sign-in link failed", resetError.code, resetError.message);
+  // A sign-in link made by the server (the public "forgot password" call would need a captcha token).
+  // It lands on the same "Join your team" page and is sent by e-mail through Resend.
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  const FROM = process.env.NOTIFY_FROM_EMAIL;
+  if (!RESEND_API_KEY || !FROM) {
+    console.error("team/invite: RESEND_API_KEY or NOTIFY_FROM_EMAIL is not set, can't invite an existing account");
+    return { ok: false, status: 502, message: "We couldn't send the invitation email. Please try again." };
+  }
+  const { data: link, error: linkError } = await admin.auth.admin.generateLink({ type: "recovery", email, options: { redirectTo } });
+  const actionLink = link?.properties?.action_link;
+  if (linkError || !actionLink) {
+    console.error("team/invite: couldn't create a sign-in link", linkError?.message);
+    return { ok: false, status: 502, message: "We couldn't send the invitation email. Please try again." };
+  }
+  const who = businessName ? `"${businessName}"` : "a business";
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: FROM,
+      to: email,
+      subject: "You're invited to join a team on SabaiBiz",
+      text: `You've been invited to join ${who} on SabaiBiz.\n\nOpen this link to join:\n${actionLink}\n\nIf you weren't expecting this, you can ignore this message.`,
+    }),
+  });
+  if (!res.ok) {
+    console.error("team/invite: Resend answered", res.status);
     return { ok: false, status: 502, message: "We couldn't send the invitation email. Please try again." };
   }
   return { ok: true };
