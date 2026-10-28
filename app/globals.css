@@ -51,6 +51,15 @@
 
   --animate-print: print-out 1.5s cubic-bezier(0.22, 0.8, 0.3, 1) 0.25s both;
 
+  @keyframes scan {
+    0%, 100% {
+      top: 6%;
+    }
+    50% {
+      top: 92%;
+    }
+  }
+
   @keyframes print-out {
     from {
       clip-path: inset(0 0 100% 0);

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { L2 } from "../../../lib/landing2";
+import { TabVisual } from "./Visuals";
 
 export default function FeatureTabs({ tabs }: { tabs: L2["tabs"] }) {
   const [i, setI] = useState(0);
@@ -31,17 +32,17 @@ export default function FeatureTabs({ tabs }: { tabs: L2["tabs"] }) {
           )}
           <h3 className="font-display text-2xl font-bold sm:text-3xl">{tab.title}</h3>
           <p className="mt-3 leading-relaxed text-[#F4EBD8]/80">{tab.text}</p>
+          <ul className="mt-6 flex flex-wrap gap-2">
+            {tab.bullets.map((b) => (
+              <li key={b} className="rounded-full border border-[#19D3B5]/40 bg-[#19D3B5]/10 px-4 py-2 text-sm text-[#19D3B5]">
+                ✓ {b}
+              </li>
+            ))}
+          </ul>
         </div>
-        <ul className="space-y-3 self-center">
-          {tab.bullets.map((b) => (
-            <li key={b} className="flex items-center gap-3 rounded-2xl border border-[#19D3B5]/25 bg-[#072A2B] px-5 py-4">
-              <span className="text-[#19D3B5]" aria-hidden>
-                ✓
-              </span>
-              {b}
-            </li>
-          ))}
-        </ul>
+        <div className="self-center">
+          <TabVisual i={i} />
+        </div>
       </div>
     </div>
   );
