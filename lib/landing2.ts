@@ -10,7 +10,7 @@ export type L2 = {
   suite: { title: string; intro: string; live: string; soon: string; items: { t: string; d: string; soon?: boolean }[] };
   tabs: { label: string; title: string; text: string; badge?: string; bullets: string[] }[];
   why: { title: string; items: { t: string; d: string }[] };
-  steps: { title: string; intro: string; items: { t: string; d: string }[] };
+  steps: { title: string; intro: string; items: { t: string; d: string }[]; tags: [string, string, string]; ui: { product: string; qty: string; price: string; read: string; check: string; sales: string; purchases: string; result: string; confirm: string; invoice: string } };
   connector: { badge: string; title: string; text: string; ask: string; answer: string; works: string; logos: string[] };
   pricing: { title: string; intro: string; monthly: string; yearly: string; save: string; perMonth: string; popular: string; soon: string; newTag: string; cta: string; pay: string; yearlyNote: string };
   security: { title: string; items: { n: string; t: string; d: string }[] };
@@ -70,6 +70,8 @@ const en: L2 = {
     title: "Easy accounting in three steps",
     intro: "No training needed. If you can use a phone camera, you can use SabaiBiz.",
     items: [{ t: "Snap", d: "Photograph a supplier invoice, or let your till sales flow in." }, { t: "Check", d: "The lines fill themselves. You glance, fix a number if needed, done." }, { t: "Know", d: "One clear number for the day, price alerts and your margins." }],
+    tags: ["1 · On your phone", "2 · Read by Sabai", "3 · Your dashboard"],
+    ui: { product: "Product", qty: "Qty", price: "Price", read: "Read from your invoice", check: "Price up 9%: check", sales: "Sales (till)", purchases: "Purchases (invoices)", result: "Result of the day", confirm: "Confirm", invoice: "INVOICE" },
   },
   connector: {
     badge: "COMING SOON",
@@ -158,6 +160,8 @@ const th: L2 = {
     title: "บัญชีง่ายๆ ใน 3 ขั้นตอน",
     intro: "ไม่ต้องเรียน ถ้าถ่ายรูปด้วยมือถือเป็น ก็ใช้ SabaiBiz ได้",
     items: [{ t: "ถ่าย", d: "ถ่ายรูปใบแจ้งหนี้จากซัพพลายเออร์ หรือให้ยอดขายจากเครื่องขายไหลเข้ามาเอง" }, { t: "ตรวจ", d: "รายการกรอกให้เอง ดูผ่านๆ แก้ตัวเลขถ้าจำเป็น เสร็จ" }, { t: "รู้", d: "ตัวเลขชัดๆ ประจำวัน แจ้งเตือนราคา และกำไรของคุณ" }],
+    tags: ["1 · บนมือถือคุณ", "2 · อ่านโดย Sabai", "3 · แดชบอร์ดของคุณ"],
+    ui: { product: "สินค้า", qty: "จำนวน", price: "ราคา", read: "อ่านจากใบแจ้งหนี้ของคุณ", check: "ราคาขึ้น 9% ตรวจสอบ", sales: "ยอดขาย (เครื่องขาย)", purchases: "ยอดซื้อ (ใบแจ้งหนี้)", result: "ผลลัพธ์ของวัน", confirm: "ยืนยัน", invoice: "ใบแจ้งหนี้" },
   },
   connector: {
     badge: "เร็วๆ นี้",
@@ -246,6 +250,8 @@ const fr: L2 = {
     title: "La compta simple, en trois étapes",
     intro: "Aucune formation. Si vous savez prendre une photo avec votre téléphone, vous savez utiliser SabaiBiz.",
     items: [{ t: "Photographiez", d: "Prenez une facture fournisseur en photo, ou laissez les ventes de votre caisse arriver toutes seules." }, { t: "Vérifiez", d: "Les lignes se remplissent seules. Un coup d’œil, une correction si besoin, c’est fait." }, { t: "Sachez", d: "Un chiffre clair pour la journée, des alertes de prix et vos marges." }],
+    tags: ["1 · Sur votre téléphone", "2 · Lu par Sabai", "3 · Votre tableau de bord"],
+    ui: { product: "Produit", qty: "Qté", price: "Prix", read: "Lu depuis votre facture", check: "Prix +9 % : à vérifier", sales: "Ventes (caisse)", purchases: "Achats (factures)", result: "Résultat du jour", confirm: "Valider", invoice: "FACTURE" },
   },
   connector: {
     badge: "BIENTÔT",
@@ -334,6 +340,8 @@ const ru: L2 = {
     title: "Простая бухгалтерия в три шага",
     intro: "Обучение не нужно. Если умеете фотографировать на телефон, справитесь с SabaiBiz.",
     items: [{ t: "Снимите", d: "Сфотографируйте счёт поставщика или пусть продажи с кассы поступают сами." }, { t: "Проверьте", d: "Строки заполняются сами. Беглый взгляд, правка при необходимости, готово." }, { t: "Узнайте", d: "Одна понятная цифра за день, оповещения о ценах и ваша маржа." }],
+    tags: ["1 · На вашем телефоне", "2 · Прочитано Sabai", "3 · Ваша панель"],
+    ui: { product: "Товар", qty: "Кол-во", price: "Цена", read: "Считано с вашего счёта", check: "Цена +9%: проверьте", sales: "Продажи (касса)", purchases: "Закупки (счета)", result: "Итог дня", confirm: "Подтвердить", invoice: "СЧЁТ" },
   },
   connector: {
     badge: "СКОРО",
