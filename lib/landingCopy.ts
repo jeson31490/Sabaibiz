@@ -1,7 +1,8 @@
 // Words of the public pages, in English and Thai. Keep both in step: the page is built from this.
 // The Thai wording should be proofread by a native speaker before a big advertising push.
 
-export type Lang = "en" | "th";
+export type Lang = "en" | "th" | "fr" | "ru";
+export type LandingLang = "en" | "th";
 
 export type LandingCopy = {
   htmlLang: string;
@@ -58,7 +59,7 @@ export type LandingCopy = {
   footer: { rights: string; faq: string; privacy: string; terms: string; contact: string };
 };
 
-export const COPY: Record<Lang, LandingCopy> = {
+export const COPY: Record<LandingLang, LandingCopy> = {
   en: {
     htmlLang: "en",
     meta: {

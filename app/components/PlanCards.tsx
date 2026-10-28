@@ -75,7 +75,7 @@ export default function PlanCards({ showCycleSwitch = true }: { showCycleSwitch?
                 </span>
               )}
               <h2 className="text-xl font-bold">{plan.name}</h2>
-              <p className={`mt-1 text-sm ${current ? "text-teal-100" : "text-teal-900/65"}`}>{plan.tagline}</p>
+              <p className={`mt-1 text-sm ${current ? "text-teal-100" : "text-teal-900/65"}`}>{plan.tag.en}</p>
               <p className="mt-5 flex items-baseline gap-1">
                 <span className="text-4xl font-bold tracking-tight">{perMonth === 0 ? "0" : perMonth.toLocaleString("en-US")} ฿</span>
                 <span className={`text-sm ${current ? "text-teal-100" : "text-teal-900/60"}`}>/month</span>
@@ -86,12 +86,12 @@ export default function PlanCards({ showCycleSwitch = true }: { showCycleSwitch?
 
               <ul className="mt-5 flex-1 space-y-3 text-sm">
                 {plan.features.map((f) => (
-                  <li key={f.text} className="flex gap-2.5">
+                  <li key={f.t.en} className={`flex gap-2.5 ${f.kind === "head" ? "font-semibold" : ""}`}>
                     <span className={current ? "text-gold-300" : "text-teal-600"}>
                       <IconCheck />
                     </span>
                     <span>
-                      {f.text}
+                      {f.t.en}
                       {f.soon && (
                         <span
                           className={`ml-2 rounded-full px-2 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide ${

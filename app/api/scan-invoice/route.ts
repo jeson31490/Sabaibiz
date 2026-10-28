@@ -11,8 +11,10 @@ import {
   type PurchaseContent,
   shortSupplierName,
 } from "../../../lib/scanInvoice";
+import { fetchOwnAiKey } from "../../../lib/aiKeyServer";
 import { fetchPlanUsage } from "../../../lib/billing";
-import { formatResetDate } from "../../../lib/plans";
+import { dayStartBangkok, formatResetDate } from "../../../lib/plans";
+import { createAdminClient } from "../../../lib/posServer";
 import { supabase } from "../../../lib/supabase";
 
 // Reading a long invoice can take a while.
@@ -136,6 +138,10 @@ function toContentBlock(page: PageInput): { block: Anthropic.ContentBlockParam; 
 
 const client = new Anthropic();
 
+// A business reading with its own AI key has no monthly quota, but not an unlimited number per day either:
+// a stolen login must not turn Sabai's servers into a free reading machine.
+const OWN_KEY_DAILY_CAP = 300;
+
 function jsonError(message: string, status: number) {
   return Response.json({ error: message }, { status });
 }
@@ -146,25 +152,24 @@ function jsonError(message: string, status: number) {
  */
 async function recordScan(
   userToken: string,
-  scan: { pages: number; inputTokens: number; outputTokens: number; succeeded: boolean },
+  scan: { pages: number; inputTokens: number; outputTokens: number; succeeded: boolean; ownKey: boolean },
 ): Promise<string | null> {
   const asUser = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     global: { headers: { Authorization: `Bearer ${userToken}` } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data, error } = await asUser
-    .from("invoice_scans")
-    .insert({
-      model: MODEL,
-      pages: scan.pages,
-      input_tokens: scan.inputTokens,
-      output_tokens: scan.outputTokens,
-      succeeded: scan.succeeded,
-    })
-    .select("id")
-    .single();
-  if (error) {
-    console.error("scan-invoice: couldn't record scan cost", error.message);
+  const row = {
+    model: MODEL,
+    pages: scan.pages,
+    input_tokens: scan.inputTokens,
+    output_tokens: scan.outputTokens,
+    succeeded: scan.succeeded,
+  };
+  // own_key is new (21_tracker_plan_and_ai_key.sql): before that migration is run, record without it.
+  let { data, error } = await asUser.from("invoice_scans").insert({ ...row, own_key: scan.ownKey }).select("id").single();
+  if (error?.code === "42703") ({ data, error } = await asUser.from("invoice_scans").insert(row).select("id").single());
+  if (error || !data) {
+    console.error("scan-invoice: couldn't record scan cost", error?.message);
     return null;
   }
   return data.id;
@@ -195,15 +200,47 @@ export async function POST(request: Request) {
 
   // The plan's monthly allowance, checked before anything is sent to Claude (supabase/20_plans_and_quotas.sql).
   // If the plans table can't be read, nothing is blocked (see fetchPlanUsage).
+  // A business with its own AI key reads with that key: no Sabai quota, and Sabai pays nothing.
+  // Without a key, only a plan with included scans can read. The Free plan has none.
   const usage = await fetchPlanUsage(asUser);
-  if (!usage.degraded && usage.scansLeft <= 0) {
-    return Response.json(
-      {
-        error: `You've used all ${usage.plan.scansPerMonth} scans of your ${usage.plan.name} plan this month. They come back on ${formatResetDate(usage.resetsAt)}, or you can upgrade your plan.`,
-        code: "quota_exceeded",
-      },
-      { status: 402 },
-    );
+  let ownKey: string | null = null;
+  if (usage.hasOwnKey) {
+    const { data: businessId } = await asUser.rpc("current_business_id");
+    const admin = createAdminClient();
+    if (admin && typeof businessId === "string") ownKey = await fetchOwnAiKey(admin, businessId);
+    if (!ownKey) {
+      return Response.json(
+        { error: "Your saved AI key can't be read. Please save it again in Settings → AI key.", code: "ai_key_invalid" },
+        { status: 402 },
+      );
+    }
+    const { count: today } = await asUser
+      .from("invoice_scans")
+      .select("id", { count: "exact", head: true })
+      .eq("own_key", true)
+      .gte("created_at", dayStartBangkok().toISOString());
+    if ((today ?? 0) >= OWN_KEY_DAILY_CAP) {
+      return jsonError("That's a lot of invoices for one day. Please carry on tomorrow.", 429);
+    }
+  } else if (!usage.degraded) {
+    if (usage.plan.scansPerMonth === 0) {
+      return Response.json(
+        {
+          error: "Reading invoices needs your own AI key (free to add in Settings → AI key) or a paid plan with scans included.",
+          code: "ai_key_required",
+        },
+        { status: 402 },
+      );
+    }
+    if (usage.scansLeft <= 0) {
+      return Response.json(
+        {
+          error: `You've used all ${usage.plan.scansPerMonth} scans of your ${usage.plan.name} plan this month. They come back on ${formatResetDate(usage.resetsAt)}. You can also add your own AI key in Settings for unlimited scans, or upgrade your plan.`,
+          code: "quota_exceeded",
+        },
+        { status: 402 },
+      );
+    }
   }
 
   let body: { pages?: unknown };
@@ -230,7 +267,7 @@ export async function POST(request: Request) {
   content.push({ type: "text", text: PROMPT });
 
   try {
-    const response = await client.messages.parse({
+    const response = await (ownKey ? new Anthropic({ apiKey: ownKey }) : client).messages.parse({
       model: MODEL,
       max_tokens: 16000,
       messages: [{ role: "user", content }],
@@ -258,6 +295,7 @@ export async function POST(request: Request) {
       inputTokens: response.usage.input_tokens,
       outputTokens: response.usage.output_tokens,
       succeeded,
+      ownKey: ownKey !== null,
     });
 
     if (!succeeded || !invoice) {
@@ -288,8 +326,20 @@ export async function POST(request: Request) {
       return jsonError("We couldn't read this file. Please try another photo.", 400);
     }
     if (error instanceof Anthropic.AuthenticationError) {
+      if (ownKey) {
+        return Response.json(
+          { error: "Anthropic refused your AI key. Please save a new one in Settings → AI key.", code: "ai_key_invalid" },
+          { status: 402 },
+        );
+      }
       console.error("scan-invoice: invalid ANTHROPIC_API_KEY");
       return jsonError("Invoice reading is not configured correctly.", 500);
+    }
+    if (ownKey && error instanceof Anthropic.PermissionDeniedError) {
+      return Response.json(
+        { error: "Your AI account can't read invoices right now. Check your Anthropic credit in your provider account.", code: "ai_key_invalid" },
+        { status: 402 },
+      );
     }
     if (error instanceof Anthropic.APIError) {
       console.error(`scan-invoice: API error ${error.status}`, error.message);

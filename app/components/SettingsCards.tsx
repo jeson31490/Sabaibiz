@@ -109,6 +109,12 @@ const OWNER_CARDS: Card[] = [
     icon: IconStar,
   },
   {
+    title: "AI key",
+    description: "Use your own Anthropic key for unlimited invoice scans.",
+    href: "/dashboard/settings/ai-key",
+    icon: IconStar,
+  },
+  {
     title: "Subscription Details",
     description: "Billing history, invoices and your payment method.",
     href: "/dashboard/settings/subscription-details",

@@ -7,6 +7,11 @@ import "@fontsource/prompt/thai-400.css";
 import "@fontsource/prompt/thai-500.css";
 import "@fontsource/prompt/thai-600.css";
 import "@fontsource/prompt/thai-700.css";
+import "@fontsource/bricolage-grotesque/latin-600.css";
+import "@fontsource/bricolage-grotesque/latin-700.css";
+import "@fontsource/bricolage-grotesque/latin-800.css";
+import "@fontsource/ibm-plex-mono/latin-400.css";
+import "@fontsource/ibm-plex-mono/latin-500.css";
 import "./globals.css";
 import { UserProvider } from "./context/UserContext";
 
