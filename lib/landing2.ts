@@ -6,7 +6,7 @@ export type L2 = {
   meta: { title: string; description: string };
   nav: { how: string; pricing: string; security: string; signIn: string; start: string };
   hero: { eyebrow: string; lines: [string, string, string]; sub: string; cta: string; cta2: string; note: string };
-  hub: { invoice: string; till: string; grab: string; line: string; today: string; alert: string; margin: string; archive: string; alertV: string; marginV: string };
+  hub: { invoice: string; till: string; grab: string; line: string; revenue: string; costs: string; result: string; alert: string; review: string; alertV: string; reviewV: string };
   suite: { title: string; intro: string; live: string; soon: string; items: { t: string; d: string; soon?: boolean }[] };
   tabs: { label: string; title: string; text: string; badge?: string; bullets: string[] }[];
   why: { title: string; items: { t: string; d: string }[] };
@@ -34,7 +34,7 @@ const en: L2 = {
     cta2: "See how it works",
     note: "No card needed. Free to start.",
   },
-  hub: { invoice: "Invoice photo", till: "Loyverse POS", grab: "Orders|Grab, Lazada…", line: "LINE · Ocha", today: "TODAY", alert: "Price alerts", margin: "Margin per product", archive: "Archive · CSV", alertV: "Olive oil ▲ 9%", marginV: "Linen shirt 68%" },
+  hub: { invoice: "Invoice photo", till: "Loyverse POS", grab: "Orders|Grab, Lazada…", line: "LINE · Ocha", revenue: "REVENUE", costs: "COSTS", result: "RESULT", alert: "Price alerts", review: "To review", alertV: "Olive oil ▲ 9%", reviewV: "3 products" },
   suite: {
     title: "All in one, in your pocket",
     intro: "Everything that touches your money, in one place you can open from your phone.",
@@ -125,7 +125,7 @@ const th: L2 = {
     cta2: "ดูวิธีใช้งาน",
     note: "ไม่ต้องใช้บัตร เริ่มใช้ฟรี",
   },
-  hub: { invoice: "รูปใบแจ้งหนี้", till: "Loyverse POS", grab: "ออเดอร์|Grab, Lazada…", line: "LINE · Ocha", today: "วันนี้", alert: "แจ้งเตือนราคา", margin: "กำไรต่อสินค้า", archive: "คลัง · CSV", alertV: "น้ำมันมะกอก ▲ 9%", marginV: "เสื้อลินิน 68%" },
+  hub: { invoice: "รูปใบแจ้งหนี้", till: "Loyverse POS", grab: "ออเดอร์|Grab, Lazada…", line: "LINE · Ocha", revenue: "รายรับ", costs: "ต้นทุน", result: "ผลลัพธ์", alert: "แจ้งเตือนราคา", review: "รอตรวจสอบ", alertV: "น้ำมันมะกอก ▲ 9%", reviewV: "3 สินค้า" },
   suite: {
     title: "ครบในที่เดียว ในกระเป๋าคุณ",
     intro: "ทุกอย่างที่เกี่ยวกับเงินของคุณ อยู่ในที่เดียวและเปิดดูจากมือถือได้",
@@ -216,7 +216,7 @@ const fr: L2 = {
     cta2: "Voir comment ça marche",
     note: "Sans carte. Gratuit pour commencer.",
   },
-  hub: { invoice: "Photo de facture", till: "Loyverse POS", grab: "Commandes|Grab, Lazada…", line: "LINE · Ocha", today: "AUJOURD'HUI", alert: "Alertes de prix", margin: "Marge par produit", archive: "Archive · CSV", alertV: "Huile d'olive ▲ 9 %", marginV: "Chemise en lin 68 %" },
+  hub: { invoice: "Photo de facture", till: "Loyverse POS", grab: "Commandes|Grab, Lazada…", line: "LINE · Ocha", revenue: "RECETTES", costs: "COÛTS", result: "RÉSULTAT", alert: "Alertes de prix", review: "À vérifier", alertV: "Huile d'olive ▲ 9 %", reviewV: "3 produits" },
   suite: {
     title: "Tout-en-un, dans votre poche",
     intro: "Tout ce qui touche à votre argent, au même endroit, depuis votre téléphone.",
@@ -307,7 +307,7 @@ const ru: L2 = {
     cta2: "Как это работает",
     note: "Без карты. Начните бесплатно.",
   },
-  hub: { invoice: "Фото счёта", till: "Loyverse POS", grab: "Заказы|Grab, Lazada…", line: "LINE · Ocha", today: "СЕГОДНЯ", alert: "Оповещения о ценах", margin: "Маржа по товару", archive: "Архив · CSV", alertV: "Оливк. масло ▲ 9%", marginV: "Льняная рубашка 68%" },
+  hub: { invoice: "Фото счёта", till: "Loyverse POS", grab: "Заказы|Grab, Lazada…", line: "LINE · Ocha", revenue: "ВЫРУЧКА", costs: "РАСХОДЫ", result: "РЕЗУЛЬТАТ", alert: "Оповещения о ценах", review: "На проверку", alertV: "Оливк. масло ▲ 9%", reviewV: "3 товара" },
   suite: {
     title: "Всё в одном, у вас в кармане",
     intro: "Всё, что касается ваших денег, в одном месте и с телефона.",
