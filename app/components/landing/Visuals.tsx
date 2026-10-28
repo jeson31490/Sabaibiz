@@ -138,35 +138,73 @@ export function TabVisual({ i }: { i: number }) {
   return <V />;
 }
 
-/** Steps: camera, check, number. */
+export const STEP_COLORS = [TEAL, GOLD, CHILI];
+
+/** Steps: camera, check, number. Each sits in a tinted panel. */
 export function StepVisual({ i }: { i: number }) {
-  if (i === 0)
-    return (
-      <div className="relative mx-auto flex h-36 w-28 items-center justify-center rounded-3xl border-2 border-[#19D3B5] bg-[#031B1C]">
-        <div className="h-20 w-16 rounded-lg bg-[#F4EBD8] p-1.5">
-          {[0, 1, 2, 3].map((n) => (
-            <div key={n} className="mt-1.5 h-1 rounded bg-[#031B1C]/30" />
-          ))}
-        </div>
-        <span className="absolute -bottom-3 flex h-8 w-8 items-center justify-center rounded-full bg-[#E8B94A] text-[#031B1C]">●</span>
-      </div>
-    );
-  if (i === 1)
-    return (
-      <div className="mx-auto w-48 space-y-2">
-        {["Milk", "Eggs", "Oil"].map((x, n) => (
-          <div key={x} className="flex items-center justify-between rounded-lg bg-[#031B1C] px-3 py-2 text-sm">
-            <span>{x}</span>
-            <span className={n === 2 ? "text-[#E8B94A]" : "text-[#19D3B5]"}>{n === 2 ? "✎" : "✓"}</span>
-          </div>
-        ))}
-      </div>
-    );
+  const c = STEP_COLORS[i];
   return (
-    <div className="mx-auto w-48 rounded-2xl bg-[#031B1C] p-4 text-center">
-      <p className="font-plex text-[11px] tracking-widest text-[#F4EBD8]/60">12/10</p>
-      <p className="font-display text-3xl font-extrabold text-[#E8B94A]">12,220 ฿</p>
-      <p className="mt-1 text-sm font-bold text-[#19D3B5]">▲ +8%</p>
+    <div
+      className="relative flex h-60 items-center justify-center overflow-hidden rounded-2xl border"
+      style={{ borderColor: `${c}40`, background: `radial-gradient(circle at 50% 30%, ${c}30, #031B1C 70%)` }}
+    >
+      <span className="absolute right-4 top-1 font-display text-8xl font-extrabold" style={{ color: `${c}22` }}>
+        {i + 1}
+      </span>
+      {i === 0 && (
+        <div className="relative flex h-44 w-32 items-center justify-center rounded-[28px] border-2 bg-[#031B1C]" style={{ borderColor: c }}>
+          <div className="relative h-28 w-20 rounded-lg bg-[#F4EBD8] p-2">
+            <div className="h-2 w-10 rounded bg-[#031B1C]/70" />
+            {[0, 1, 2, 3, 4].map((n) => (
+              <div key={n} className="mt-2 h-1.5 rounded bg-[#031B1C]/25" style={{ width: `${95 - (n % 3) * 20}%` }} />
+            ))}
+            <div className="absolute inset-x-0 h-0.5 animate-[scan_2.6s_ease-in-out_infinite]" style={{ background: c, boxShadow: `0 0 12px 3px ${c}` }} />
+          </div>
+          {[["left-2 top-2", "border-l-2 border-t-2"], ["right-2 top-2", "border-r-2 border-t-2"], ["left-2 bottom-8", "border-l-2 border-b-2"], ["right-2 bottom-8", "border-r-2 border-b-2"]].map(([pos, b]) => (
+            <span key={pos} className={`absolute h-4 w-4 ${pos} ${b}`} style={{ borderColor: c }} />
+          ))}
+          <span className="absolute -bottom-4 flex h-10 w-10 items-center justify-center rounded-full border-4 border-[#072A2B] text-[#031B1C]" style={{ background: GOLD }}>
+            ●
+          </span>
+        </div>
+      )}
+      {i === 1 && (
+        <div className="w-60 space-y-2">
+          {[["Milk 1L ×12", "684", false], ["Eggs ×30", "255", false], ["Olive oil 5L", "1,290", true]].map(([n, v, edit]) => (
+            <div
+              key={String(n)}
+              className="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm"
+              style={edit ? { background: `${c}22`, border: `1.5px solid ${c}` } : { background: "#031B1C" }}
+            >
+              <span>{n}</span>
+              <span className="font-bold" style={{ color: edit ? c : TEAL }}>
+                {v} ฿ {edit ? "✎" : "✓"}
+              </span>
+            </div>
+          ))}
+          <div className="rounded-xl py-2.5 text-center font-display font-bold text-[#031B1C]" style={{ background: TEAL }}>
+            ✓ Save
+          </div>
+        </div>
+      )}
+      {i === 2 && (
+        <div className="w-60 space-y-3">
+          <div className="rounded-2xl bg-[#031B1C] p-4">
+            <p className="font-plex text-[11px] tracking-widest text-[#F4EBD8]/60">TODAY</p>
+            <div className="flex items-end justify-between">
+              <p className="font-display text-3xl font-extrabold" style={{ color: GOLD }}>12,220 ฿</p>
+              <span className="mb-1 font-plex text-xs font-bold" style={{ color: TEAL }}>▲ +8%</span>
+            </div>
+            <svg viewBox="0 0 200 40" className="mt-2 w-full" aria-hidden>
+              <path d="M0 32 L30 28 L60 30 L90 20 L120 24 L150 12 L200 6" fill="none" stroke={GOLD} strokeWidth="2.500" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div className="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm" style={{ background: `${CHILI}22`, border: `1px solid ${CHILI}66` }}>
+            <span>Olive oil</span>
+            <span className="font-bold" style={{ color: CHILI }}>▲ 9%</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
