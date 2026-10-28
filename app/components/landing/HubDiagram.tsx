@@ -15,7 +15,7 @@ export default function HubDiagram({ t }: { t: L2["hub"] }) {
   ];
   return (
     <div>
-      <svg viewBox="0 0 900 440" className="hidden w-full md:block" role="img" aria-label="Sabai AI">
+      <svg viewBox="0 0 900 440" className="hidden w-full md:block" role="img" aria-label="SabaiBiz">
         <defs>
           <radialGradient id="sphere" cx="38%" cy="32%" r="75%">
             <stop offset="0" stopColor="#1E5F5B" />
@@ -78,8 +78,8 @@ export default function HubDiagram({ t }: { t: L2["hub"] }) {
         <g transform="translate(428 186)">
           <SabaiMark size={44} id="hub" />
         </g>
-        <text x="450" y="262" textAnchor="middle" fill="#F4EBD8" fontSize="14" fontWeight="700" fontFamily="var(--font-display), sans-serif">
-          Sabai AI
+        <text x="450" y="262" textAnchor="middle" fill="#F4EBD8" fontSize="15" fontWeight="800" fontFamily="var(--font-display), sans-serif">
+          Sabai<tspan fill="#E8B94A">Biz</tspan>
         </text>
       </svg>
 
@@ -94,7 +94,7 @@ export default function HubDiagram({ t }: { t: L2["hub"] }) {
         <span className="text-[#19D3B5]">▼</span>
         <div className="flex h-28 w-28 flex-col items-center justify-center rounded-full border-2 border-[#19D3B5] bg-[radial-gradient(circle_at_38%_32%,#1E5F5B,#031B1C)]">
           <SabaiMark size={40} id="hubm" />
-          <span className="mt-1 font-display text-sm font-bold text-[#F4EBD8]">Sabai AI</span>
+          <span className="mt-1 font-display text-sm font-extrabold text-[#F4EBD8]">Sabai<span className="text-[#E8B94A]">Biz</span></span>
         </div>
         <span className="text-[#E8B94A]">▼</span>
         <div className="grid w-full grid-cols-2 gap-2">

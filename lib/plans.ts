@@ -193,7 +193,7 @@ export const PLANS: Record<PlanId, Plan> = {
       check(w("Supplier price comparison", "เปรียบเทียบราคาระหว่างซัพพลายเออร์", "Comparaison des prix entre fournisseurs", "Сравнение цен поставщиков")),
       check(w("Daily summary on LINE", "สรุปรายวันทาง LINE", "Résumé quotidien sur LINE", "Ежедневная сводка в LINE"), { soon: true }),
       check(w("Grab invoices straight from email", "รับบิล Grab จากอีเมลโดยตรง", "Factures Grab directement depuis l'e-mail", "Счета Grab прямо из почты"), { soon: true }),
-      check(w("Payslips, pre-filled each month", "สลิปเงินเดือนกรอกให้ล่วงหน้าทุกเดือน", "Fiches de paie préremplies chaque mois", "Расчётные листки, заполненные заранее"), { soon: true }),
+      check(w("Payslips, pre-filled each month", "สลิปเงินเดือนกรอกให้ล่วงหน้าทุกเดือน", "Fiches de paie préremplies chaque mois", "Расчётные листки, заполненные заранее")),
       sub(
         w(
           "Social security and tax calculated, you can edit everything",

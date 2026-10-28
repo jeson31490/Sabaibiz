@@ -5,7 +5,7 @@ import { CONTACT_EMAIL } from "../../../lib/site";
 import FeatureTabs from "./FeatureTabs";
 import HubDiagram from "./HubDiagram";
 import PlanSection from "./PlanSection";
-import SabaiMark from "./SabaiMark";
+import { Wordmark } from "./SabaiMark";
 
 const LANGS: Lang[] = ["en", "fr", "th", "ru"];
 
@@ -22,9 +22,8 @@ export default function Landing({ lang }: { lang: Lang }) {
 
       <header className="sticky top-0 z-50 border-b border-[#19D3B5]/15 bg-[#031B1C]/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-3">
-          <Link href={LANG_PATH[lang]} aria-label="Sabai" className="flex items-center gap-2">
-            <SabaiMark size={34} id="nav" />
-            <span className="font-display text-xl font-extrabold">Sabai</span>
+          <Link href={LANG_PATH[lang]} aria-label="SabaiBiz">
+            <Wordmark id="nav" />
           </Link>
           <nav aria-label="Main" className="hidden items-center gap-7 text-sm font-medium text-[#F4EBD8]/80 md:flex">
             <a href="#what" className="hover:text-white">{t.nav.how}</a>
@@ -81,18 +80,6 @@ export default function Landing({ lang }: { lang: Lang }) {
           </div>
         </section>
 
-        {/* Stats */}
-        <section className="bg-[#E8B94A] text-[#031B1C]">
-          <dl className="mx-auto grid max-w-6xl grid-cols-2 gap-6 px-5 py-8 md:grid-cols-4">
-            {t.stats.map((s) => (
-              <div key={s.n}>
-                <dt className="font-display text-3xl font-extrabold sm:text-4xl">{s.n}</dt>
-                <dd className="mt-1 text-sm font-medium">{s.l}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-
         {/* Suite */}
         <section id="what" className="bg-[#F4EBD8] text-[#031B1C]">
           <div className="mx-auto max-w-6xl px-5 py-16 sm:py-20">
@@ -126,24 +113,15 @@ export default function Landing({ lang }: { lang: Lang }) {
         {/* Why */}
         <section className="mx-auto max-w-6xl px-5 py-16 sm:py-20">
           <h2 className="font-display text-3xl font-extrabold sm:text-5xl">{t.why.title}</h2>
-          <div className="mt-10 grid gap-5 md:grid-cols-2">
-            <ul className="space-y-3 rounded-3xl border border-[#FF5A36]/40 bg-[#072A2B] p-6">
-              {t.why.no.map((x) => (
-                <li key={x} className="flex gap-3 text-[#F4EBD8]/80">
-                  <span className="text-[#FF8A6E]" aria-hidden>✕</span>
-                  {x}
-                </li>
-              ))}
-            </ul>
-            <ul className="space-y-3 rounded-3xl border border-[#19D3B5]/50 bg-[#072A2B] p-6">
-              {t.why.yes.map((x) => (
-                <li key={x} className="flex gap-3">
-                  <span className="text-[#19D3B5]" aria-hidden>✓</span>
-                  {x}
-                </li>
-              ))}
-            </ul>
-          </div>
+          <ul className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {t.why.items.map((it, i) => (
+              <li key={it.t} className="rounded-3xl border border-[#19D3B5]/30 bg-[#072A2B] p-6">
+                <span className="font-plex text-sm font-medium text-[#19D3B5]">{String(i + 1).padStart(2, "0")}</span>
+                <h3 className="mt-2 font-display text-xl font-bold">{it.t}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-[#F4EBD8]/75">{it.d}</p>
+              </li>
+            ))}
+          </ul>
         </section>
 
         {/* Bring your own AI */}
@@ -183,6 +161,16 @@ export default function Landing({ lang }: { lang: Lang }) {
           <div className="space-y-3 self-center rounded-3xl bg-[#072A2B] p-6">
             <p className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-sm bg-[#19D3B5] px-4 py-3 text-sm font-medium text-[#031B1C]">{t.connector.ask}</p>
             <p className="w-fit max-w-[85%] rounded-2xl rounded-bl-sm border border-[#F4EBD8]/15 px-4 py-3 text-sm">{t.connector.answer}</p>
+          </div>
+          <div className="md:col-span-2">
+            <p className="text-center font-plex text-xs tracking-widest text-[#F4EBD8]/60">{t.connector.works.toUpperCase()}</p>
+            <ul className="mt-4 flex flex-wrap items-center justify-center gap-3 sm:gap-5">
+              {t.connector.logos.map((n) => (
+                <li key={n} className="rounded-full border border-[#F4EBD8]/20 bg-[#072A2B] px-6 py-3 font-display text-lg font-bold tracking-tight sm:text-2xl">
+                  {n}
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
@@ -226,7 +214,7 @@ export default function Landing({ lang }: { lang: Lang }) {
       <footer className="border-t border-[#19D3B5]/15 py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 text-sm text-[#F4EBD8]/70 sm:flex-row">
           <p>
-            © {new Date().getFullYear()} Sabai. {t.footer.rights}
+            © {new Date().getFullYear()} SabaiBiz. {t.footer.rights}
           </p>
           <nav aria-label="Footer" className="flex flex-wrap items-center gap-5">
             <Link href="/faq" className="hover:text-white">{t.footer.faq}</Link>

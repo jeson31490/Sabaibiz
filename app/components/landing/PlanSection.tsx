@@ -4,14 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import type { L2 } from "../../../lib/landing2";
 import type { Lang } from "../../../lib/landingCopy";
-import { PLAN_ORDER, PLANS, monthlyPriceOnCycle, type PlanId } from "../../../lib/plans";
+import { PLAN_ORDER, PLANS, monthlyPriceOnCycle } from "../../../lib/plans";
 
-const THEME: Record<PlanId, { bg: string; fg: string; chip: string }> = {
-  free: { bg: "#F4EBD8", fg: "#031B1C", chip: "rgba(3,27,28,.1)" },
-  solo: { bg: "#19D3B5", fg: "#031B1C", chip: "rgba(3,27,28,.12)" },
-  team: { bg: "#E8B94A", fg: "#031B1C", chip: "rgba(3,27,28,.12)" },
-  tracker: { bg: "#FF5A36", fg: "#031B1C", chip: "rgba(3,27,28,.14)" },
-};
+const THEME = { bg: "#072A2B", fg: "#F4EBD8", chip: "rgba(244,235,216,.14)" };
 
 const PAY = ["PromptPay QR", "Card", "TrueMoney Wallet", "Google Pay"];
 
@@ -38,24 +33,28 @@ export default function PlanSection({ t, lang, signup }: { t: L2["pricing"]; lan
       <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {PLAN_ORDER.map((id) => {
           const plan = PLANS[id];
-          const th = THEME[id];
+          const th = THEME;
           const price = monthlyPriceOnCycle(plan, yearly ? "yearly" : "monthly");
           return (
-            <div key={id} className="relative flex flex-col rounded-3xl p-6" style={{ background: th.bg, color: th.fg }}>
+            <div
+              key={id}
+              className={`relative flex flex-col rounded-3xl border p-6 ${plan.popular ? "border-[#E8B94A] shadow-[0_0_0_1px_#E8B94A]" : "border-[#19D3B5]/25"}`}
+              style={{ background: th.bg, color: th.fg }}
+            >
               {plan.popular && (
-                <span className="absolute -top-3 right-5 rounded-full bg-[#031B1C] px-3 py-1 font-plex text-[11px] font-bold text-[#E8B94A]">{t.popular}</span>
+                <span className="absolute -top-3 right-5 rounded-full bg-[#E8B94A] px-3 py-1 font-plex text-[11px] font-bold text-[#031B1C]">{t.popular}</span>
               )}
               <h3 className="font-display text-2xl font-extrabold">{plan.name}</h3>
               <p className="mt-1 min-h-10 text-sm opacity-80">{plan.tag[lang]}</p>
               <p className="mt-4 flex items-baseline gap-1">
-                <span className="font-display text-5xl font-extrabold tracking-tight">{price.toLocaleString("en-US")}</span>
-                <span className="text-xl font-bold">฿</span>
+                <span className="font-display text-5xl font-extrabold tracking-tight text-[#E8B94A]">{price.toLocaleString("en-US")}</span>
+                <span className="text-xl font-bold text-[#E8B94A]">฿</span>
                 <span className="text-sm opacity-70">{t.perMonth}</span>
               </p>
               <p className="h-5 text-xs opacity-70">{yearly && price > 0 ? t.yearlyNote : ""}</p>
               <Link
                 href={signup}
-                className="mt-4 block rounded-full bg-[#031B1C] px-5 py-3 text-center text-sm font-bold text-[#F4EBD8] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#031B1C] focus-visible:ring-offset-2"
+                className={`mt-4 block rounded-full px-5 py-3 text-center text-sm font-bold transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8B94A] ${plan.popular ? "bg-[#E8B94A] text-[#031B1C]" : "border border-[#F4EBD8]/30 text-[#F4EBD8]"}`}
               >
                 {t.cta}
               </Link>
@@ -74,7 +73,7 @@ export default function PlanSection({ t, lang, signup }: { t: L2["pricing"]; lan
                         </span>
                       )}
                       {f.isNew && (
-                        <span className="ml-2 whitespace-nowrap rounded-full bg-[#031B1C] px-2 py-0.5 align-middle font-plex text-[10px] font-bold text-[#E8B94A]">
+                        <span className="ml-2 whitespace-nowrap rounded-full bg-[#19D3B5] px-2 py-0.5 align-middle font-plex text-[10px] font-bold text-[#031B1C]">
                           {t.newTag}
                         </span>
                       )}
