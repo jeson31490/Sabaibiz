@@ -32,7 +32,7 @@ const en: L2 = {
     sub: "SabaiBiz reads your supplier invoices, adds your till sales and shows one clear number for the day. For any shop, café or small business in Thailand.",
     cta: "Start free",
     cta2: "See how it works",
-    note: "No card needed. Free forever with your own AI key.",
+    note: "No card needed. Free to start.",
   },
   hub: { invoice: "Invoice photo", till: "Loyverse POS", grab: "Orders|Grab, Lazada…", line: "LINE · Ocha", today: "TODAY", alert: "Price alerts", margin: "Margin per product", archive: "Archive · CSV", alertV: "Olive oil ▲ 9%", marginV: "Linen shirt 68%" },
   suite: {
@@ -123,7 +123,7 @@ const th: L2 = {
     sub: "SabaiBiz อ่านใบแจ้งหนี้ซัพพลายเออร์ รวมยอดขายจากเครื่องขาย และแสดงตัวเลขเดียวที่ชัดเจนของวัน สำหรับร้านค้า คาเฟ่ หรือธุรกิจเล็กทุกประเภทในไทย",
     cta: "เริ่มฟรี",
     cta2: "ดูวิธีใช้งาน",
-    note: "ไม่ต้องใช้บัตร ใช้ฟรีตลอดด้วยคีย์ AI ของคุณเอง",
+    note: "ไม่ต้องใช้บัตร เริ่มใช้ฟรี",
   },
   hub: { invoice: "รูปใบแจ้งหนี้", till: "Loyverse POS", grab: "ออเดอร์|Grab, Lazada…", line: "LINE · Ocha", today: "วันนี้", alert: "แจ้งเตือนราคา", margin: "กำไรต่อสินค้า", archive: "คลัง · CSV", alertV: "น้ำมันมะกอก ▲ 9%", marginV: "เสื้อลินิน 68%" },
   suite: {
@@ -214,7 +214,7 @@ const fr: L2 = {
     sub: "SabaiBiz lit vos factures fournisseurs, ajoute les ventes de votre caisse et affiche un seul chiffre clair pour la journée. Pour toute boutique, tout café ou petite entreprise en Thaïlande.",
     cta: "Commencer gratuitement",
     cta2: "Voir comment ça marche",
-    note: "Sans carte. Gratuit à vie avec votre propre clé IA.",
+    note: "Sans carte. Gratuit pour commencer.",
   },
   hub: { invoice: "Photo de facture", till: "Loyverse POS", grab: "Commandes|Grab, Lazada…", line: "LINE · Ocha", today: "AUJOURD'HUI", alert: "Alertes de prix", margin: "Marge par produit", archive: "Archive · CSV", alertV: "Huile d'olive ▲ 9 %", marginV: "Chemise en lin 68 %" },
   suite: {
@@ -305,7 +305,7 @@ const ru: L2 = {
     sub: "SabaiBiz читает счета поставщиков, добавляет продажи с кассы и показывает одну понятную цифру за день. Для любого магазина, кафе или малого бизнеса в Таиланде.",
     cta: "Начать бесплатно",
     cta2: "Как это работает",
-    note: "Без карты. Бесплатно навсегда с вашим ИИ-ключом.",
+    note: "Без карты. Начните бесплатно.",
   },
   hub: { invoice: "Фото счёта", till: "Loyverse POS", grab: "Заказы|Grab, Lazada…", line: "LINE · Ocha", today: "СЕГОДНЯ", alert: "Оповещения о ценах", margin: "Маржа по товару", archive: "Архив · CSV", alertV: "Оливк. масло ▲ 9%", marginV: "Льняная рубашка 68%" },
   suite: {

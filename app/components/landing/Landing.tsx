@@ -5,8 +5,10 @@ import { CONTACT_EMAIL } from "../../../lib/site";
 import AiLogo from "./AiLogo";
 import FeatureTabs from "./FeatureTabs";
 import HubDiagram from "./HubDiagram";
+import MobileMenu from "./MobileMenu";
 import PlanSection from "./PlanSection";
 import RegionBanner from "./RegionBanner";
+import StandaloneRedirect from "./StandaloneRedirect";
 import { Wordmark } from "./SabaiMark";
 import { StepVisual, WhyIcon, whyColor } from "./Visuals";
 
@@ -21,6 +23,7 @@ export default function Landing({ lang }: { lang: Lang }) {
 
   return (
     <div lang={t.htmlLang} className="bg-[#031B1C] font-sans text-[#F4EBD8]">
+      <StandaloneRedirect />
       <RegionBanner lang={lang} />
 
       <header className="sticky top-0 z-50 border-b border-[#19D3B5]/15 bg-[#031B1C]/90 backdrop-blur">
@@ -53,6 +56,18 @@ export default function Landing({ lang }: { lang: Lang }) {
             <Link href={signup} className="rounded-full bg-[#E8B94A] px-4 py-2 text-sm font-bold text-[#031B1C] hover:brightness-110">
               {t.nav.start}
             </Link>
+            <MobileMenu
+              lang={lang}
+              langs={LANGS}
+              links={[
+                { href: "#what", text: t.nav.how },
+                { href: "#pricing", text: t.nav.pricing },
+                { href: "#security", text: t.nav.security },
+              ]}
+              login={login}
+              signIn={t.nav.signIn}
+              label={t.langs}
+            />
           </div>
         </div>
       </header>
