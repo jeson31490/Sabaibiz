@@ -29,7 +29,7 @@ const en: L2 = {
   hero: {
     eyebrow: "EASY ACCOUNTING FOR SMALL BUSINESS",
     lines: ["Snap the invoice.", "Know your day.", "Keep your margin."],
-    sub: "SabaiBiz reads your supplier invoices, adds your till sales and shows one clear number for the day. For any shop, café or small business in Thailand.",
+    sub: "SabaiBiz reads your supplier invoices, adds your till sales and shows one clear number for the day. For any shop, café or small business, from Thailand to Europe and Australia.",
     cta: "Start free",
     cta2: "See how it works",
     note: "No card needed. Free to start.",
@@ -211,7 +211,7 @@ const fr: L2 = {
   hero: {
     eyebrow: "LA COMPTA FACILE POUR PETITS COMMERCES",
     lines: ["Photographiez la facture.", "Connaissez votre journée.", "Gardez votre marge."],
-    sub: "SabaiBiz lit vos factures fournisseurs, ajoute les ventes de votre caisse et affiche un seul chiffre clair pour la journée. Pour toute boutique, tout café ou petite entreprise en Thaïlande.",
+    sub: "SabaiBiz lit vos factures fournisseurs, ajoute les ventes de votre caisse et affiche un seul chiffre clair pour la journée. Pour toute boutique, tout café ou petite entreprise, de la Thaïlande à l'Europe et l'Australie.",
     cta: "Commencer gratuitement",
     cta2: "Voir comment ça marche",
     note: "Sans carte. Gratuit pour commencer.",
@@ -302,7 +302,7 @@ const ru: L2 = {
   hero: {
     eyebrow: "ПРОСТАЯ БУХГАЛТЕРИЯ ДЛЯ МАЛОГО БИЗНЕСА",
     lines: ["Сфотографируйте счёт.", "Узнайте свой день.", "Сохраните маржу."],
-    sub: "SabaiBiz читает счета поставщиков, добавляет продажи с кассы и показывает одну понятную цифру за день. Для любого магазина, кафе или малого бизнеса в Таиланде.",
+    sub: "SabaiBiz читает счета поставщиков, добавляет продажи с кассы и показывает одну понятную цифру за день. Для любого магазина, кафе или малого бизнеса: от Таиланда до Европы и Австралии.",
     cta: "Начать бесплатно",
     cta2: "Как это работает",
     note: "Без карты. Начните бесплатно.",
