@@ -2,7 +2,10 @@
 
 import { useEffect, useRef } from "react";
 
-const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+// The site key is public by design (it is sent to every visitor's browser). The secret key lives only in Supabase.
+// NEXT_PUBLIC_TURNSTILE_SITE_KEY overrides it; set it to "off" to switch the captcha off.
+const ENV_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+const SITE_KEY = ENV_KEY === "off" ? undefined : ENV_KEY || "0x4AAAAAAFpJfgDpn0o2O_5k";
 
 /** True when a Cloudflare Turnstile site key is set. Without it, no captcha is shown and nothing changes. */
 export const CAPTCHA_ENABLED = !!SITE_KEY;
