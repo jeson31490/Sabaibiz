@@ -27,7 +27,7 @@ export default function SettingsShell({
   }, [ownerOnly, role, router]);
 
   return (
-    <div className="min-h-screen bg-teal-50/60 pb-16">
+    <div className="min-h-screen pb-16">
       <DashboardNavbar />
       <main className={`mx-auto px-6 py-8 ${maxWidth}`}>
         <Link

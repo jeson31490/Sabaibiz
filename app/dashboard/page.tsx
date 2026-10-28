@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function DashboardPage() {
   return (
-    <div className="min-h-screen bg-teal-50/60">
+    <div className="min-h-screen">
       <DashboardNavbar />
       <DashboardHome />
     </div>

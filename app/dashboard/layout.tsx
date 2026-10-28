@@ -26,12 +26,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     return (
       <div
         role="status"
-        className="flex min-h-screen items-center justify-center bg-teal-50/60 text-sm font-medium text-teal-800"
+        className="app-dark flex min-h-screen items-center justify-center text-sm font-medium text-teal-800"
       >
         Loading…
       </div>
     );
   }
 
-  return <>{children}</>;
+  return <div className="app-dark min-h-screen">{children}</div>;
 }

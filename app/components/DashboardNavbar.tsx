@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { getInitials, useUser, type UserRole } from "../context/UserContext";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactElement } from "react";
 import { supabase } from "../../lib/supabase";
+import { Wordmark } from "./landing/SabaiMark";
 import { useNotifications } from "../../lib/useNotifications";
 
 type IconProps = { className?: string };
@@ -120,30 +120,13 @@ export default function DashboardNavbar() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-teal-100/80 bg-white/90 backdrop-blur">
-      <div className="mx-auto grid max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-4 px-6 py-2">
-        <Link href="/dashboard" className="flex items-center gap-1 justify-self-start">
-          <Image
-            src="/Thaimen1.png"
-            alt="Sabai mascot"
-            width={1380}
-            height={1349}
-            sizes="66px"
-            className="h-12 w-auto object-contain"
-            priority
-          />
-          <Image
-            src="/sabaibiz-logo.png"
-            alt="SabaiBiz logo"
-            width={2816}
-            height={1536}
-            sizes="240px"
-            className="hidden h-14 w-auto object-contain sm:block"
-            priority
-          />
+    <header className="sticky top-0 z-40 border-b border-teal-400/15 bg-[#031b1c]/90 backdrop-blur">
+      <div className="mx-auto grid max-w-6xl grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 sm:px-6 sm:grid-cols-[1fr_auto_1fr]">
+        <Link href="/dashboard" aria-label="SabaiBiz dashboard" className="justify-self-start">
+          <Wordmark size={34} id="nav" className="text-xl sm:text-2xl" />
         </Link>
 
-        <p className="truncate text-center text-base font-semibold text-teal-950 sm:text-lg">
+        <p className="truncate text-center font-display text-base font-bold text-teal-950 sm:text-lg">
           {user.businessName}
         </p>
 
@@ -154,11 +137,11 @@ export default function DashboardNavbar() {
               src={user.avatarUrl}
               alt={user.name}
               title={user.name}
-              className="h-9 w-9 rounded-full object-cover"
+              className="h-9 w-9 rounded-full object-cover ring-2 ring-gold-500/60"
             />
           ) : (
             <span
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-700 text-sm font-bold text-white"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-500 text-sm font-bold text-[#031b1c]"
               title={user.name}
             >
               {getInitials(user.name)}
@@ -168,15 +151,15 @@ export default function DashboardNavbar() {
             type="button"
             onClick={handleLogout}
             disabled={loggingOut}
-            className="rounded-full border border-teal-200 px-4 py-1.5 text-sm font-semibold text-teal-800 transition hover:border-teal-300 hover:bg-teal-50 disabled:cursor-wait disabled:opacity-60"
+            className="whitespace-nowrap rounded-full border border-teal-950/30 px-3 sm:px-4 py-1.5 text-sm font-semibold text-teal-950 transition hover:border-teal-950/60 hover:bg-white/5 disabled:cursor-wait disabled:opacity-60"
           >
             {loggingOut ? "Logging out…" : "Log out"}
           </button>
         </div>
       </div>
 
-      <nav aria-label="Dashboard" className="border-t border-teal-100/80">
-        <ul className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 py-1.5">
+      <nav aria-label="Dashboard">
+        <ul className="mx-auto flex max-w-6xl gap-1.5 overflow-x-auto px-4 pb-3">
           {navItems.map(({ label, href, icon: Icon, exact }) => {
             const active = exact ? pathname === href : pathname.startsWith(href);
             return (
@@ -184,10 +167,10 @@ export default function DashboardNavbar() {
                 <Link
                   href={href}
                   aria-current={active ? "page" : undefined}
-                  className={`flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  className={`flex items-center gap-2 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold transition ${
                     active
-                      ? "bg-teal-700 text-white"
-                      : "text-teal-800 hover:bg-teal-50 hover:text-teal-950"
+                      ? "border-teal-400 bg-teal-400 text-[#031b1c]"
+                      : "border-transparent text-teal-900 hover:border-teal-400/30 hover:bg-teal-400/10 hover:text-teal-950"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -195,7 +178,7 @@ export default function DashboardNavbar() {
                   {href === ITEM.team.href && unread > 0 && (
                     <span
                       aria-label={`${unread} new`}
-                      className="ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-gold-500 px-1.5 text-xs font-bold text-teal-950"
+                      className="ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-gold-500 px-1.5 text-xs font-bold text-[#031b1c]"
                     >
                       {unread}
                     </span>

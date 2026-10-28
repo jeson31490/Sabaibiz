@@ -18,7 +18,7 @@ import {
 
 // The product being analysed is teal, the one it is compared with is gold.
 // This pair passes the dataviz palette checks (chroma, colour-blind separation, contrast).
-const COLORS = { first: "#0d9488", second: "#b45309" };
+const COLORS = { first: "#19D3B5", second: "#E8B94A" };
 
 const PRESETS = [
   { id: "7d", label: "Last 7 days", days: 7 },
@@ -535,7 +535,7 @@ export default function PriceAnalysisPage() {
   const alerts = load.status === "ready" ? load.alerts : [];
 
   return (
-    <div className="min-h-screen bg-teal-50/60 pb-16">
+    <div className="min-h-screen pb-16">
       <DashboardNavbar />
 
       <main className="mx-auto max-w-6xl px-6 py-8">
