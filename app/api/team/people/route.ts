@@ -14,6 +14,8 @@ export type TeamPerson = {
   email: string;
   role: "owner" | "manager" | "employee";
   avatarUrl: string | null;
+  workStart: string | null;
+  workEnd: string | null;
 };
 
 export async function GET(request: Request) {
@@ -35,24 +37,39 @@ export async function GET(request: Request) {
   if (typeof businessId !== "string") return jsonError("We couldn't find your business.", 500);
 
   // Row Level Security lets the signed-in user read their business's team rows.
-  const { data: members, error } = await asUser
-    .from("team_members")
-    .select("invited_email, role, status, member_user_id")
-    .eq("user_id", businessId);
+  const readMembers = (columns: string) => asUser.from("team_members").select(columns).eq("user_id", businessId);
+  type MemberRow = {
+    invited_email: string;
+    role: string;
+    status: string;
+    member_user_id: string | null;
+    work_start?: string | null;
+    work_end?: string | null;
+  };
+  let { data: rawMembers, error } = await readMembers("invited_email, role, status, member_user_id, work_start, work_end");
+  // 42703: supabase/26_work_schedule.sql not run yet; carry on without planned hours.
+  if (error?.code === "42703") ({ data: rawMembers, error } = await readMembers("invited_email, role, status, member_user_id"));
+  const members = (rawMembers ?? []) as unknown as MemberRow[];
   if (error) {
     console.error("team/people: read failed", error.message);
     return jsonError("We couldn't load your team.", 500);
   }
 
-  const wanted: { id: string; role: TeamPerson["role"]; fallbackEmail: string }[] = [
-    { id: businessId, role: "owner", fallbackEmail: "" },
-    ...(members ?? [])
+  const wanted: { id: string; role: TeamPerson["role"]; fallbackEmail: string; workStart: string | null; workEnd: string | null }[] = [
+    { id: businessId, role: "owner", fallbackEmail: "", workStart: null, workEnd: null },
+    ...members
       .filter((m) => m.status === "active" && m.member_user_id)
-      .map((m) => ({ id: m.member_user_id as string, role: m.role as TeamPerson["role"], fallbackEmail: m.invited_email as string })),
+      .map((m) => ({
+        id: m.member_user_id as string,
+        role: m.role as TeamPerson["role"],
+        fallbackEmail: m.invited_email,
+        workStart: m.work_start ?? null,
+        workEnd: m.work_end ?? null,
+      })),
   ];
 
   const people = await Promise.all(
-    wanted.map(async ({ id, role, fallbackEmail }): Promise<TeamPerson> => {
+    wanted.map(async ({ id, role, fallbackEmail, workStart, workEnd }): Promise<TeamPerson> => {
       const { data } = await admin.auth.admin.getUserById(id);
       const meta = (data.user?.user_metadata ?? {}) as Record<string, unknown>;
       const email = data.user?.email ?? fallbackEmail;
@@ -61,7 +78,7 @@ export async function GET(request: Request) {
       const avatarUrl = version
         ? `${admin.storage.from(AVATAR_BUCKET).getPublicUrl(id).data.publicUrl}?v=${String(version)}`
         : null;
-      return { userId: id, name: fullName || email.split("@")[0] || "Team member", email, role, avatarUrl };
+      return { userId: id, name: fullName || email.split("@")[0] || "Team member", email, role, avatarUrl, workStart, workEnd };
     }),
   );
   return Response.json({ people });

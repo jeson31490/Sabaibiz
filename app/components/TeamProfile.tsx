@@ -10,7 +10,8 @@ import {
   fmtDayRange,
   kindLabel,
   shiftDay,
-  shiftDuration,
+  punctuality,
+  punctualityLabel,
   type Absence,
   type Shift,
 } from "../../lib/attendance";
@@ -20,8 +21,6 @@ import { zoneLabel, type ZoneResult } from "../../lib/zone";
 import Avatar from "./Avatar";
 
 const ROLE_LABEL = { owner: "Owner", manager: "Manager", employee: "Employee" } as const;
-const minutesOf = (s: Shift) => (s.clockOut ? Math.max(0, (Date.parse(s.clockOut) - Date.parse(s.clockIn)) / 60000) : 0);
-const fmtHours = (m: number) => `${Math.floor(m / 60)}h ${String(Math.round(m % 60)).padStart(2, "0")}m`;
 
 export function ZoneBadge({ zone }: { zone: ZoneResult | null }) {
   if (!zone) return null;
@@ -57,12 +56,16 @@ export default function TeamProfile({ person, onClose }: { person: TeamPerson; o
 
   const stats = useMemo(() => {
     if (typeof data === "string") return null;
-    const minutes = data.shifts.reduce((n, s) => n + minutesOf(s), 0);
+    const planned = { workStart: person.workStart, workEnd: person.workEnd };
+    const hasPlan = Boolean(person.workStart || person.workEnd);
+    const checks = data.shifts.map((s) => punctuality(s, planned));
+    const late = checks.filter((c) => c.arrival?.state === "late").length;
+    const early = checks.filter((c) => c.departure?.state === "early").length;
     const days = new Set(data.shifts.map((s) => bangkokDayOf(s.clockIn))).size;
     const out = data.shifts.reduce((n, s) => n + (s.clockInZone === "out" ? 1 : 0) + (s.clockOutZone === "out" ? 1 : 0), 0);
     const sick = data.absences.filter((a) => a.kind === "sick").length;
-    return { minutes, days, out, sick, absent: data.absences.length - sick };
-  }, [data]);
+    return { hasPlan, late, early, days, out, sick, absent: data.absences.length - sick };
+  }, [data, person.workStart, person.workEnd]);
 
   return (
     <div role="dialog" aria-modal="true" aria-label={person.name} className="fixed inset-0 z-50 flex items-end justify-center bg-teal-950/50 sm:items-center sm:p-4">
@@ -90,7 +93,7 @@ export default function TeamProfile({ person, onClose }: { person: TeamPerson; o
             <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
                 ["Days worked", String(stats.days)],
-                ["Hours", fmtHours(stats.minutes)],
+                ["Late arrivals", stats.hasPlan ? String(stats.late) : "—"],
                 ["Absences", String(stats.absent)],
                 ["Sick days", String(stats.sick)],
               ].map(([k, v]) => (
@@ -101,7 +104,11 @@ export default function TeamProfile({ person, onClose }: { person: TeamPerson; o
               ))}
             </dl>
             <p className="mt-2 text-xs text-teal-900/55">
-              Last 30 days. {stats.out > 0 ? `${stats.out} clock-in/out outside the zone.` : ""}
+              Last 30 days.{" "}
+              {stats.hasPlan
+                ? `Planned hours ${person.workStart?.slice(0, 5) ?? "—"} to ${person.workEnd?.slice(0, 5) ?? "—"}${stats.early > 0 ? ` · ${stats.early} early departure${stats.early > 1 ? "s" : ""}` : ""}. A few minutes either way count as on time.`
+                : "No planned hours set (Settings → Team access)."}{" "}
+              {stats.out > 0 ? `${stats.out} clock-in/out outside the zone.` : ""}
             </p>
 
             <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-teal-900/60">Clock-ins</h3>
@@ -116,7 +123,12 @@ export default function TeamProfile({ person, onClose }: { person: TeamPerson; o
                       {fmtClock(s.clockIn)}
                       <ZoneBadge zone={s.clockInZone} /> → {s.clockOut ? fmtClock(s.clockOut) : "still in"}
                       <ZoneBadge zone={s.clockOutZone} />
-                      {s.clockOut && <span className="text-teal-900/50"> ({shiftDuration(s)})</span>}
+                      {(() => {
+                        const label = punctualityLabel(punctuality(s, { workStart: person.workStart, workEnd: person.workEnd }));
+                        return label.text === "—" ? null : (
+                          <span className={`ml-2 text-xs font-semibold ${label.bad ? "text-red-500" : "text-teal-900/50"}`}>{label.text}</span>
+                        );
+                      })()}
                     </span>
                   </li>
                 ))}

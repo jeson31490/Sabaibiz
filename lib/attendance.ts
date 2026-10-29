@@ -207,6 +207,62 @@ export function shiftDay(isoDay: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** A few minutes either way still counts as "on time": a 17:05 clock-out is not overtime and an 08:03 clock-in is not late. */
+export const ON_TIME_TOLERANCE_MIN = 10;
+
+export type PunctualityState = "ok" | "late" | "early";
+
+export type Punctuality = {
+  /** Arrival compared with the planned start: "ok", or "late" by `lateMin`. Null without a planned start. */
+  arrival: { state: "ok" | "late"; minutes: number } | null;
+  /** Departure compared with the planned end: "ok", or "early" by `minutes`. Null while still in / no planned end. */
+  departure: { state: "ok" | "early"; minutes: number } | null;
+};
+
+/** "HH:MM" or "HH:MM:SS" to minutes since midnight. */
+const toMinutes = (hhmm: string) => {
+  const [h, m] = hhmm.split(":");
+  return Number(h) * 60 + Number(m);
+};
+
+/**
+ * Was the person there at the planned times? Only lateness and leaving early are flagged.
+ * Staying later is never turned into overtime: the owner decides that in the payroll.
+ */
+export function punctuality(
+  s: Pick<Shift, "clockIn" | "clockOut">,
+  planned: { workStart: string | null; workEnd: string | null } | undefined,
+): Punctuality {
+  const result: Punctuality = { arrival: null, departure: null };
+  if (!planned) return result;
+  if (planned.workStart) {
+    const late = toMinutes(fmtClock(s.clockIn)) - toMinutes(planned.workStart);
+    result.arrival = late > ON_TIME_TOLERANCE_MIN ? { state: "late", minutes: late } : { state: "ok", minutes: 0 };
+  }
+  if (planned.workEnd && s.clockOut) {
+    const early = toMinutes(planned.workEnd) - toMinutes(fmtClock(s.clockOut));
+    result.departure = early > ON_TIME_TOLERANCE_MIN ? { state: "early", minutes: early } : { state: "ok", minutes: 0 };
+  }
+  return result;
+}
+
+/** "On time", "Late 25 min", "Left 30 min early", or "—" when there is nothing planned to compare with. */
+export function punctualityLabel(p: Punctuality): { text: string; bad: boolean } {
+  const parts: string[] = [];
+  let bad = false;
+  if (p.arrival?.state === "late") {
+    parts.push(`Late ${p.arrival.minutes} min`);
+    bad = true;
+  }
+  if (p.departure?.state === "early") {
+    parts.push(`Left ${p.departure.minutes} min early`);
+    bad = true;
+  }
+  if (parts.length > 0) return { text: parts.join(" · "), bad };
+  if (p.arrival || p.departure) return { text: "On time", bad: false };
+  return { text: "—", bad: false };
+}
+
 /** "7h 05m", or "—" while a shift is still open. */
 export function shiftDuration(s: Pick<Shift, "clockIn" | "clockOut">): string {
   if (!s.clockOut) return "—";

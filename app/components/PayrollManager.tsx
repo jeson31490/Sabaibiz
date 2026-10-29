@@ -100,7 +100,7 @@ export default function PayrollManager() {
               <tr>
                 <th className="px-4 py-3">Person</th>
                 <th className="px-4 py-3 text-right">Base</th>
-                <th className="px-4 py-3 text-right">Bonus</th>
+                <th className="px-4 py-3 text-right" title="Overtime and bonuses are only what you type here. Clock-in times never add pay.">Overtime / bonus</th>
                 <th className="px-4 py-3 text-right">Social security</th>
                 <th className="px-4 py-3 text-right">Tax</th>
                 <th className="px-4 py-3 text-right">Net pay</th>
