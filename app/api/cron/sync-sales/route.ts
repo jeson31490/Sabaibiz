@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     console.error("cron/sync-sales: zone purge failed", purged.error.message);
   }
 
-  // Housekeeping: transfer photos are kept 6 months (supabase/25_payment_scans.sql). Files first, then the rows.
+  // Housekeeping: transfer photos are kept 90 days (supabase/25_payment_scans.sql). Files first, then the rows.
   try {
     const cutoff = new Date(Date.now() - PAYMENT_SCAN_RETENTION_DAYS * 24 * 3600 * 1000).toISOString();
     const old = await admin.from("payment_scans").select("id, image_path").lt("scanned_at", cutoff).limit(500);
