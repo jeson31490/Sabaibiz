@@ -12,6 +12,7 @@ import {
   removeTeamMember,
   resendTeamInvite,
   setTeamMemberCanScan,
+  setTeamMemberCanScanPayments,
   type TeamMember,
   type TeamRole,
 } from "../../../../lib/team";
@@ -43,6 +44,7 @@ export default function TeamAccessPage() {
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [inviteRole, setInviteRole] = useState<TeamRole>("manager");
   const [savingScanId, setSavingScanId] = useState<string | null>(null);
+  const [savingPayId, setSavingPayId] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
@@ -99,6 +101,30 @@ export default function TeamAccessPage() {
       setInviteError(err instanceof Error ? err.message : "We couldn't send the invitation. Please try again.");
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleTogglePayments(member: TeamMember) {
+    const next = !member.canScanPayments;
+    setScanError(null);
+    setNotice(null);
+    setSavingPayId(member.id);
+    try {
+      await setTeamMemberCanScanPayments(member.id, next);
+      setLoad((prev) =>
+        prev.status === "owner"
+          ? { ...prev, members: prev.members.map((m) => (m.id === member.id ? { ...m, canScanPayments: next } : m)) }
+          : prev,
+      );
+      setNotice(
+        next
+          ? `${member.email} can now photograph customers' transfer receipts.`
+          : `${member.email} can no longer photograph transfer receipts.`,
+      );
+    } catch {
+      setScanError("We couldn't change this permission. Make sure supabase/25_payment_scans.sql has been run.");
+    } finally {
+      setSavingPayId(null);
     }
   }
 
@@ -297,6 +323,7 @@ export default function TeamAccessPage() {
                     <th className="px-6 py-3">Email</th>
                     <th className="px-6 py-3">Role</th>
                     <th className="px-6 py-3">Invoice scan</th>
+                    <th className="px-6 py-3">Transfer photos</th>
                     <th className="px-6 py-3">Status</th>
                     <th className="px-6 py-3">Since</th>
                     <th className="px-6 py-3 text-right">
@@ -311,6 +338,7 @@ export default function TeamAccessPage() {
                       <span className="ml-2 text-xs font-normal text-teal-900/55">(you)</span>
                     </td>
                     <td className="px-6 py-4 text-teal-900/80">Owner</td>
+                    <td className="px-6 py-4 text-teal-900/60">Always</td>
                     <td className="px-6 py-4 text-teal-900/60">Always</td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">
@@ -349,6 +377,34 @@ export default function TeamAccessPage() {
                               />
                             </span>
                             <span className="text-xs font-semibold text-teal-900/80">{m.canScan ? "Allowed" : "Off"}</span>
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {m.role === "manager" ? (
+                          <span className="text-teal-900/60">Always</span>
+                        ) : (
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={m.canScanPayments}
+                            aria-label={`Allow ${m.email} to photograph transfer receipts`}
+                            disabled={savingPayId === m.id}
+                            onClick={() => handleTogglePayments(m)}
+                            className="inline-flex items-center gap-2 disabled:opacity-60"
+                          >
+                            <span
+                              className={`relative inline-block h-6 w-11 rounded-full transition ${
+                                m.canScanPayments ? "bg-teal-700" : "bg-teal-900/20"
+                              }`}
+                            >
+                              <span
+                                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                                  m.canScanPayments ? "left-[22px]" : "left-0.5"
+                                }`}
+                              />
+                            </span>
+                            <span className="text-xs font-semibold text-teal-900/80">{m.canScanPayments ? "Allowed" : "Off"}</span>
                           </button>
                         )}
                       </td>

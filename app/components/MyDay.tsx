@@ -24,6 +24,7 @@ import {
   type Shift,
 } from "../../lib/attendance";
 import { bangkokToday } from "../../lib/invoices";
+import { useCanScanPayments } from "../../lib/useCanScanPayments";
 import { supabase } from "../../lib/supabase";
 import { getPosition, isZoneRequired } from "../../lib/zone";
 import { useUser } from "../context/UserContext";
@@ -44,6 +45,7 @@ const KINDS: { id: AbsenceKind; label: string }[] = [
 
 export default function MyDay() {
   const { user, canScan } = useUser();
+  const canScanPayments = useCanScanPayments();
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -223,6 +225,15 @@ export default function MyDay() {
               </ul>
             )}
           </section>
+
+          {canScanPayments && (
+            <Link
+              href="/dashboard/transfers"
+              className="mt-6 flex items-center justify-center gap-3 rounded-full border-2 border-gold-500 px-8 py-5 text-xl font-bold text-gold-500 transition hover:bg-gold-500/10"
+            >
+              Photograph a transfer
+            </Link>
+          )}
 
           {canScan && (
             <Link
