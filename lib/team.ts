@@ -208,7 +208,34 @@ export type TeamPerson = {
   email: string;
   role: "owner" | "manager" | "employee";
   avatarUrl: string | null;
+  /** Planned working hours "HH:MM[:SS]", set by the owner; null when not set. Only used to show lateness. */
+  workStart: string | null;
+  workEnd: string | null;
 };
+
+export type WorkSchedule = { workStart: string | null; workEnd: string | null };
+
+/** Planned hours of each team row (owner side), keyed by team row id. Empty before supabase/26 has been run. */
+export async function fetchWorkSchedules(): Promise<Map<string, WorkSchedule>> {
+  const { data, error } = await supabase.from("team_members").select("id, work_start, work_end");
+  const map = new Map<string, WorkSchedule>();
+  if (error) return map;
+  for (const r of (data ?? []) as { id: string; work_start: string | null; work_end: string | null }[]) {
+    map.set(r.id, { workStart: r.work_start, workEnd: r.work_end });
+  }
+  return map;
+}
+
+/** Sets someone's planned hours ("08:00", "17:00"; empty clears). Only the owner can change it. */
+export async function setTeamMemberSchedule(id: string, workStart: string | null, workEnd: string | null): Promise<void> {
+  const { data, error } = await supabase
+    .from("team_members")
+    .update({ work_start: workStart || null, work_end: workEnd || null })
+    .eq("id", id)
+    .select("id");
+  if (error) throw error;
+  if (!data || data.length === 0) throw new Error("The hours could not be changed.");
+}
 
 /** Names and photos of the business's people (server side: accounts can't be read from the browser). Owner and managers. */
 export async function fetchTeamPeople(): Promise<TeamPerson[]> {

@@ -13,6 +13,9 @@ import {
   resendTeamInvite,
   setTeamMemberCanScan,
   setTeamMemberCanScanPayments,
+  setTeamMemberSchedule,
+  fetchWorkSchedules,
+  type WorkSchedule,
   type TeamMember,
   type TeamRole,
 } from "../../../../lib/team";
@@ -45,6 +48,7 @@ export default function TeamAccessPage() {
   const [inviteRole, setInviteRole] = useState<TeamRole>("manager");
   const [savingScanId, setSavingScanId] = useState<string | null>(null);
   const [savingPayId, setSavingPayId] = useState<string | null>(null);
+  const [schedules, setSchedules] = useState<Map<string, WorkSchedule>>(new Map());
   const [scanError, setScanError] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
@@ -60,6 +64,10 @@ export default function TeamAccessPage() {
           membership?.status === "active"
             ? { status: "member", membership }
             : { status: "owner", members: await fetchTeam(data.user.id) };
+        if (next.status === "owner") {
+          const planned = await fetchWorkSchedules();
+          if (!cancelled) setSchedules(planned);
+        }
         if (!cancelled) setLoad(next);
       } catch (e) {
         if (cancelled) return;
@@ -101,6 +109,18 @@ export default function TeamAccessPage() {
       setInviteError(err instanceof Error ? err.message : "We couldn't send the invitation. Please try again.");
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleSchedule(member: TeamMember, field: "workStart" | "workEnd", value: string) {
+    const current = schedules.get(member.id) ?? { workStart: null, workEnd: null };
+    const next = { ...current, [field]: value || null };
+    setSchedules((prev) => new Map(prev).set(member.id, next));
+    setScanError(null);
+    try {
+      await setTeamMemberSchedule(member.id, next.workStart, next.workEnd);
+    } catch {
+      setScanError("We couldn't save the hours. Make sure supabase/26_work_schedule.sql has been run.");
     }
   }
 
@@ -324,6 +344,7 @@ export default function TeamAccessPage() {
                     <th className="px-6 py-3">Role</th>
                     <th className="px-6 py-3">Invoice scan</th>
                     <th className="px-6 py-3">Transfer photos</th>
+                    <th className="px-6 py-3">Planned hours</th>
                     <th className="px-6 py-3">Status</th>
                     <th className="px-6 py-3">Since</th>
                     <th className="px-6 py-3 text-right">
@@ -340,6 +361,7 @@ export default function TeamAccessPage() {
                     <td className="px-6 py-4 text-teal-900/80">Owner</td>
                     <td className="px-6 py-4 text-teal-900/60">Always</td>
                     <td className="px-6 py-4 text-teal-900/60">Always</td>
+                    <td className="px-6 py-4 text-teal-900/60">—</td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">
                         Active
@@ -407,6 +429,25 @@ export default function TeamAccessPage() {
                             <span className="text-xs font-semibold text-teal-900/80">{m.canScanPayments ? "Allowed" : "Off"}</span>
                           </button>
                         )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1.5 text-xs text-teal-900/70">
+                          <input
+                            type="time"
+                            aria-label={`Planned start for ${m.email}`}
+                            value={(schedules.get(m.id)?.workStart ?? "").slice(0, 5)}
+                            onChange={(e) => handleSchedule(m, "workStart", e.target.value)}
+                            className="rounded-lg border border-teal-200 bg-white px-2 py-1 text-sm text-teal-950"
+                          />
+                          <span>to</span>
+                          <input
+                            type="time"
+                            aria-label={`Planned end for ${m.email}`}
+                            value={(schedules.get(m.id)?.workEnd ?? "").slice(0, 5)}
+                            onChange={(e) => handleSchedule(m, "workEnd", e.target.value)}
+                            className="rounded-lg border border-teal-200 bg-white px-2 py-1 text-sm text-teal-950"
+                          />
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <span

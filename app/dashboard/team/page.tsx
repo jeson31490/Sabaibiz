@@ -15,7 +15,8 @@ import {
   kindLabel,
   NOT_SET_UP_MESSAGE,
   shiftDay,
-  shiftDuration,
+  punctuality,
+  punctualityLabel,
   type Absence,
   type Shift,
 } from "../../../lib/attendance";
@@ -42,8 +43,6 @@ type Load = { status: "loading" } | { status: "error"; message: string } | ({ st
 const card = "rounded-2xl border border-teal-100 bg-white shadow-card";
 const th = "px-6 py-3 text-xs font-semibold uppercase tracking-wide text-teal-900/55";
 
-const minutesOf = (s: Shift) => (s.clockOut ? Math.max(0, (Date.parse(s.clockOut) - Date.parse(s.clockIn)) / 60000) : 0);
-const fmtHours = (minutes: number) => `${Math.floor(minutes / 60)}h ${String(Math.round(minutes % 60)).padStart(2, "0")}m`;
 
 async function loadOverview(): Promise<Overview> {
   const today = bangkokToday();
@@ -143,10 +142,20 @@ function TeamContent({
   const todayShifts = shifts.filter((s) => bangkokDayOf(s.clockIn) === today || !s.clockOut);
   const stillIn = shifts.filter((s) => !s.clockOut);
 
-  // Hours over the last 7 days (today included), finished shifts only, per person.
-  const perPerson = new Map<string, number>();
-  for (const s of shifts) perPerson.set(s.employeeId, (perPerson.get(s.employeeId) ?? 0) + minutesOf(s));
-  const totals = [...perPerson.entries()].sort((a, b) => b[1] - a[1]);
+  // Punctuality over the last 7 days (today included), per person. No hour totals: clock times are only a
+  // check that people were there on time, never a count of extra minutes (overtime is the owner's decision).
+  const plannedOf = new Map(people.map((p) => [p.userId, { workStart: p.workStart, workEnd: p.workEnd }]));
+  const perPerson = new Map<string, { days: Set<string>; late: number; early: number; planned: boolean }>();
+  for (const s of shifts) {
+    const planned = plannedOf.get(s.employeeId);
+    const row = perPerson.get(s.employeeId) ?? { days: new Set<string>(), late: 0, early: 0, planned: Boolean(planned?.workStart || planned?.workEnd) };
+    row.days.add(bangkokDayOf(s.clockIn));
+    const check = punctuality(s, planned);
+    if (check.arrival?.state === "late") row.late += 1;
+    if (check.departure?.state === "early") row.early += 1;
+    perPerson.set(s.employeeId, row);
+  }
+  const totals = [...perPerson.entries()].sort((a, b) => b[1].days.size - a[1].days.size);
 
   const current = absences.filter((a) => a.endDate >= today);
   const recent = absences.filter((a) => a.endDate < today).reverse();
@@ -261,7 +270,7 @@ function TeamContent({
                   <th className={th}>Person</th>
                   <th className={th}>In</th>
                   <th className={th}>Out</th>
-                  <th className={th}>Time</th>
+                  <th className={th}>Punctuality</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-teal-100">
@@ -270,7 +279,10 @@ function TeamContent({
                     <td className="px-6 py-3 font-medium text-teal-950">{nameOf(s.employeeId)}</td>
                     <td className="px-6 py-3 text-teal-900/80">{fmtClock(s.clockIn)}<ZoneBadge zone={s.clockInZone} /></td>
                     <td className="px-6 py-3 text-teal-900/80">{s.clockOut ? fmtClock(s.clockOut) : "Still in"}<ZoneBadge zone={s.clockOutZone} /></td>
-                    <td className="px-6 py-3 text-teal-900/60">{shiftDuration(s)}</td>
+                    {(() => {
+                      const label = punctualityLabel(punctuality(s, plannedOf.get(s.employeeId)));
+                      return <td className={`px-6 py-3 ${label.bad ? "font-semibold text-red-500" : "text-teal-900/60"}`}>{label.text}</td>;
+                    })()}
                   </tr>
                 ))}
               </tbody>
@@ -280,20 +292,32 @@ function TeamContent({
       </section>
 
       <section className={`mt-6 ${card}`}>
-        <h2 className="px-6 pt-6 text-lg font-semibold text-teal-950">Hours, last 7 days</h2>
+        <h2 className="px-6 pt-6 text-lg font-semibold text-teal-950">Attendance, last 7 days</h2>
         {totals.length === 0 ? (
           <p className="px-6 pb-6 pt-2 text-sm text-teal-900/65">No shifts recorded yet.</p>
         ) : (
           <ul className="mt-3 divide-y divide-teal-100 border-t border-teal-100">
-            {totals.map(([id, minutes]) => (
-              <li key={id} className="flex items-center justify-between px-6 py-3 text-sm">
+            {totals.map(([id, r]) => (
+              <li key={id} className="flex flex-wrap items-center justify-between gap-x-4 px-6 py-3 text-sm">
                 <span className="font-medium text-teal-950">{nameOf(id)}</span>
-                <span className="text-teal-900/75">{fmtHours(minutes)}</span>
+                <span className="text-teal-900/75">
+                  {r.days.size} day{r.days.size > 1 ? "s" : ""}
+                  {r.planned && (
+                    <>
+                      {" · "}
+                      <span className={r.late > 0 ? "font-semibold text-red-500" : ""}>{r.late} late</span>
+                      {" · "}
+                      <span className={r.early > 0 ? "font-semibold text-red-500" : ""}>{r.early} left early</span>
+                    </>
+                  )}
+                </span>
               </li>
             ))}
           </ul>
         )}
-        <p className="px-6 pb-5 pt-2 text-xs text-teal-900/50">Finished shifts only. A shift someone forgot to clock out of isn&apos;t counted.</p>
+        <p className="px-6 pb-5 pt-2 text-xs text-teal-900/50">
+          Clock times only show who was there on time; they never add up to overtime. Set planned hours in Settings → Team access.
+        </p>
       </section>
     </>
   );
