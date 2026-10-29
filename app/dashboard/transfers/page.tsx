@@ -10,6 +10,7 @@ import {
   deletePaymentScan,
   fetchPaymentScansForDay,
   isPaymentScansNotSetUp,
+  MANAGER_HISTORY_DAYS,
   PAYMENT_SCAN_RETENTION_DAYS,
   uploadPaymentScan,
   type PaymentScan,
@@ -52,8 +53,13 @@ export default function TransfersPage() {
   }, [role, allowed, router]);
 
   const load = useCallback(async () => {
+    // Employees have no history: they can only add photos.
+    if (role === "employee") {
+      setScans([]);
+      return;
+    }
     try {
-      const list = await fetchPaymentScansForDay(day, isManager);
+      const list = await fetchPaymentScansForDay(day);
       setScans(list);
       setError(null);
     } catch (e) {
@@ -64,7 +70,7 @@ export default function TransfersPage() {
           : "The photos could not be loaded. Please try again.",
       );
     }
-  }, [day, isManager]);
+  }, [day, role]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -86,7 +92,7 @@ export default function TransfersPage() {
     setNotice(null);
     try {
       await uploadPaymentScan(file);
-      setNotice("Saved. The owner can see this transfer.");
+      setNotice("Saved. Thank you!");
       setDay(bangkokToday());
       await load();
     } catch (e) {
@@ -113,7 +119,8 @@ export default function TransfersPage() {
   }
 
   const today = bangkokToday();
-  const oldest = shiftDay(today, -PAYMENT_SCAN_RETENTION_DAYS);
+  // The owner browses everything that is kept; a manager only the last 30 days.
+  const oldest = shiftDay(today, -(role === "owner" ? PAYMENT_SCAN_RETENTION_DAYS : MANAGER_HISTORY_DAYS));
   const planBlocked = allowed === false && isManager;
 
   return (
@@ -122,7 +129,8 @@ export default function TransfersPage() {
       <main className="mx-auto max-w-3xl px-6 py-8">
         <h1 className="text-2xl font-bold tracking-tight text-teal-950 sm:text-3xl">Transfers</h1>
         <p className="mt-1 text-sm text-teal-900/65">
-          Photos of customers&apos; transfer receipts, kept {Math.round(PAYMENT_SCAN_RETENTION_DAYS / 30.5)} months.
+          Photos of customers&apos; transfer receipts, kept {Math.round(PAYMENT_SCAN_RETENTION_DAYS / 30)} months.
+          {role === "manager" && ` You can see the last ${MANAGER_HISTORY_DAYS} days.`}
         </p>
 
         {planBlocked && (
@@ -168,10 +176,11 @@ export default function TransfersPage() {
           </p>
         )}
 
+        {isManager && (
         <section className="mt-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-teal-950">{day === today ? "Today" : fmtDayLong(day)}</h2>
-            {isManager && (
+            {(
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -218,7 +227,7 @@ export default function TransfersPage() {
               <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {scans.map((s) => (
                   <li key={s.id} className="overflow-hidden rounded-2xl border border-teal-100 bg-white shadow-card">
-                    {isManager && s.url ? (
+                    {s.url ? (
                       <button type="button" onClick={() => setOpen(s)} className="block w-full" aria-label={`Open photo taken at ${fmtTime(s.scannedAt)}`}>
                         {/* Signed, short-lived link: next/image optimisation can't be used. */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -231,9 +240,7 @@ export default function TransfersPage() {
                     )}
                     <div className="px-3 py-2 text-sm">
                       <p className="font-semibold text-teal-950">{fmtTime(s.scannedAt)}</p>
-                      {isManager && (
-                        <p className="truncate text-xs text-teal-900/60">{(s.scannedBy && names.get(s.scannedBy)) || "Former team member"}</p>
-                      )}
+                      <p className="truncate text-xs text-teal-900/60">{(s.scannedBy && names.get(s.scannedBy)) || "Former team member"}</p>
                     </div>
                   </li>
                 ))}
@@ -241,6 +248,7 @@ export default function TransfersPage() {
             </>
           )}
         </section>
+        )}
       </main>
 
       {open && open.url && (

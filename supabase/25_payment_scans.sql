@@ -3,11 +3,11 @@
 -- Safe to run more than once.
 --
 -- Who can do what, inside one business:
---   owner / manager   take photos, see every photo of the business, by day and by person
---   employee          take photos ONLY when the owner switched it on for them; sees their own list (time only)
---   owner             deletes
+--   owner             takes photos, sees every photo of the last 90 days, by day and by person; deletes
+--   manager           takes photos, sees the photos of the last 30 days only
+--   employee          takes photos ONLY when the owner switched it on for them; sees NO history at all
 -- Paid plans only (a free account must cost nothing). The permission is enforced here, in the database.
--- Photos stay 6 months, then the daily cron (app/api/cron/sync-sales) deletes the file and the row.
+-- Photos stay 90 days, then the daily cron (app/api/cron/sync-sales) deletes the file and the row.
 
 -- ---------------------------------------------------------------------------
 -- Permission per team member (off by default)
@@ -104,13 +104,16 @@ create policy "Allowed people add transfer photos" on public.payment_scans
     and image_path like (user_id::text || '/%')
   );
 
--- Read: owner and managers see all; an employee only their own rows.
+-- Read: the owner sees everything that is kept (90 days); a manager the last 30 days; an employee nothing.
 drop policy if exists "See transfer photos" on public.payment_scans;
 create policy "See transfer photos" on public.payment_scans
   for select to authenticated
   using (
     user_id = (select public.current_business_id())
-    and ((select public.is_business_manager()) or scanned_by = (select auth.uid()))
+    and (
+      user_id = (select auth.uid())
+      or ((select public.is_business_manager()) and scanned_at > now() - interval '30 days')
+    )
   );
 
 -- Delete: the owner only.
@@ -146,7 +149,10 @@ create policy "Managers view transfer photos" on storage.objects
   using (
     bucket_id = 'payment-scans'
     and (storage.foldername(name))[1] = (select public.current_business_id())::text
-    and (select public.is_business_manager())
+    and (
+      (storage.foldername(name))[1] = (select auth.uid())::text
+      or ((select public.is_business_manager()) and created_at > now() - interval '30 days')
+    )
   );
 
 drop policy if exists "Owner deletes transfer photos" on storage.objects;

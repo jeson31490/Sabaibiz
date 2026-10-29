@@ -2,10 +2,12 @@ import { supabase } from "./supabase";
 import { bangkokToday } from "./invoices";
 import { fetchBusinessId } from "./team";
 
-// Photos of customers' transfer receipts, kept 6 months (supabase/25_payment_scans.sql).
+// Photos of customers' transfer receipts, kept 90 days (supabase/25_payment_scans.sql).
 
 export const PAYMENT_SCAN_BUCKET = "payment-scans";
-export const PAYMENT_SCAN_RETENTION_DAYS = 183;
+export const PAYMENT_SCAN_RETENTION_DAYS = 90;
+/** A manager only sees the last 30 days; the owner sees everything that is kept. */
+export const MANAGER_HISTORY_DAYS = 30;
 const MAX_SIDE = 1600;
 
 export type PaymentScan = {
@@ -13,7 +15,7 @@ export type PaymentScan = {
   scannedBy: string | null;
   scannedAt: string;
   imagePath: string;
-  /** Short-lived link to the photo; null for employees (they only see the time of their own photos). */
+  /** Short-lived link to the photo. */
   url: string | null;
 };
 
@@ -64,8 +66,8 @@ export async function uploadPaymentScan(file: File): Promise<void> {
 const SELECT = "id, scanned_by, scanned_at, image_path";
 type Raw = { id: string; scanned_by: string | null; scanned_at: string; image_path: string };
 
-/** Photos taken on one Bangkok day, newest first. Owners/managers get a link per photo. */
-export async function fetchPaymentScansForDay(day: string, withLinks: boolean): Promise<PaymentScan[]> {
+/** Photos taken on one Bangkok day, newest first (owner and managers only: employees have no access to the history). */
+export async function fetchPaymentScansForDay(day: string): Promise<PaymentScan[]> {
   const from = new Date(`${day}T00:00:00+07:00`);
   const to = new Date(from.getTime() + 24 * 3600 * 1000);
   const { data, error } = await supabase
@@ -77,7 +79,7 @@ export async function fetchPaymentScansForDay(day: string, withLinks: boolean): 
   if (error) throw error;
   const rows = (data ?? []) as Raw[];
   const urls = new Map<string, string>();
-  if (withLinks && rows.length > 0) {
+  if (rows.length > 0) {
     const signed = await supabase.storage.from(PAYMENT_SCAN_BUCKET).createSignedUrls(
       rows.map((r) => r.image_path),
       3600,
