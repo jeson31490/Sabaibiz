@@ -13,6 +13,8 @@ export type TeamMember = {
   memberUserId: string | null;
   /** Whether this person may scan and see invoices. Always true for managers. */
   canScan: boolean;
+  /** Whether this person may photograph customers' transfer receipts. Off by default; managers always can (paid plans). */
+  canScanPayments: boolean;
 };
 
 type RawMember = {
@@ -24,10 +26,12 @@ type RawMember = {
   accepted_at: string | null;
   member_user_id?: string | null;
   can_scan?: boolean | null;
+  can_scan_payments?: boolean | null;
 };
 
 const BASE_SELECT = "id, invited_email, role, status, invited_at, accepted_at, member_user_id";
-const MEMBER_SELECT = `${BASE_SELECT}, can_scan`;
+const SCAN_SELECT = `${BASE_SELECT}, can_scan`;
+const MEMBER_SELECT = `${SCAN_SELECT}, can_scan_payments`;
 
 // 42703: the can_scan column doesn't exist yet (18_team_permissions_attendance.sql not run).
 // Fall back to the old columns so the app keeps working, and keeps knowing who is a member.
@@ -43,6 +47,7 @@ const toMember = (r: RawMember): TeamMember => ({
   memberUserId: r.member_user_id ?? null,
   // Before 18_team_permissions_attendance.sql has been run there is no column: everyone could scan.
   canScan: r.can_scan ?? true,
+  canScanPayments: r.can_scan_payments ?? false,
 });
 
 /** The owner's team, oldest invitation first. */
@@ -50,6 +55,8 @@ export async function fetchTeam(ownerId: string): Promise<TeamMember[]> {
   const query = (columns: string) =>
     supabase.from("team_members").select(columns).eq("user_id", ownerId).order("invited_at", { ascending: true });
   let { data, error } = await query(MEMBER_SELECT);
+  // supabase/25 not run yet: keep can_scan; before supabase/18 too: only the base columns.
+  if (isMissingColumn(error)) ({ data, error } = await query(SCAN_SELECT));
   if (isMissingColumn(error)) ({ data, error } = await query(BASE_SELECT));
   if (error) throw error;
   return ((data ?? []) as unknown as RawMember[]).map(toMember);
@@ -63,6 +70,8 @@ export async function fetchVisibleTeam(): Promise<TeamMember[]> {
   const query = (columns: string) =>
     supabase.from("team_members").select(columns).order("invited_at", { ascending: true });
   let { data, error } = await query(MEMBER_SELECT);
+  // supabase/25 not run yet: keep can_scan; before supabase/18 too: only the base columns.
+  if (isMissingColumn(error)) ({ data, error } = await query(SCAN_SELECT));
   if (isMissingColumn(error)) ({ data, error } = await query(BASE_SELECT));
   if (error) throw error;
   return ((data ?? []) as unknown as RawMember[]).map(toMember);
@@ -80,6 +89,8 @@ export async function fetchMyMembership(userId: string): Promise<TeamMember | nu
   const query = (columns: string) =>
     supabase.from("team_members").select(columns).eq("member_user_id", userId).maybeSingle();
   let { data, error } = await query(MEMBER_SELECT);
+  // supabase/25 not run yet: keep can_scan; before supabase/18 too: only the base columns.
+  if (isMissingColumn(error)) ({ data, error } = await query(SCAN_SELECT));
   if (isMissingColumn(error)) ({ data, error } = await query(BASE_SELECT));
   if (error) throw error;
   return data ? toMember(data as unknown as RawMember) : null;
@@ -137,6 +148,13 @@ export async function setTeamMemberCanScan(id: string, canScan: boolean): Promis
   const { data, error } = await supabase.from("team_members").update({ can_scan: canScan }).eq("id", id).select("id");
   if (error) throw error;
   // Row Level Security filters out rows that aren't yours without an error.
+  if (!data || data.length === 0) throw new Error("This permission could not be changed.");
+}
+
+/** Lets an employee photograph customers' transfer receipts, or takes that away. Only the owner can change it. */
+export async function setTeamMemberCanScanPayments(id: string, allowed: boolean): Promise<void> {
+  const { data, error } = await supabase.from("team_members").update({ can_scan_payments: allowed }).eq("id", id).select("id");
+  if (error) throw error;
   if (!data || data.length === 0) throw new Error("This permission could not be changed.");
 }
 

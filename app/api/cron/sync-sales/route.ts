@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { LoyverseError } from "../../../../lib/loyverse";
 import { SyncError, syncLoyverseAccount } from "../../../../lib/loyverseSync";
+import { PAYMENT_SCAN_BUCKET, PAYMENT_SCAN_RETENTION_DAYS } from "../../../../lib/paymentScans";
 import { createAdminClient } from "../../../../lib/posServer";
 
 // Daily sync of every connected Loyverse account, called by Vercel Cron (vercel.json), early
@@ -33,6 +34,21 @@ export async function GET(request: Request) {
   const purged = await admin.rpc("purge_old_zone_checks");
   if (purged.error && !["42883", "PGRST202"].includes(purged.error.code ?? "")) {
     console.error("cron/sync-sales: zone purge failed", purged.error.message);
+  }
+
+  // Housekeeping: transfer photos are kept 6 months (supabase/25_payment_scans.sql). Files first, then the rows.
+  try {
+    const cutoff = new Date(Date.now() - PAYMENT_SCAN_RETENTION_DAYS * 24 * 3600 * 1000).toISOString();
+    const old = await admin.from("payment_scans").select("id, image_path").lt("scanned_at", cutoff).limit(500);
+    if (old.error) {
+      if (!["42P01", "PGRST205"].includes(old.error.code ?? "")) console.error("cron/sync-sales: scan purge", old.error.message);
+    } else if (old.data && old.data.length > 0) {
+      const removed = await admin.storage.from(PAYMENT_SCAN_BUCKET).remove(old.data.map((r) => r.image_path));
+      if (removed.error) console.error("cron/sync-sales: scan files", removed.error.message);
+      else await admin.from("payment_scans").delete().in("id", old.data.map((r) => r.id));
+    }
+  } catch (e) {
+    console.error("cron/sync-sales: scan purge failed", e);
   }
 
   // Least recently synced first, so no account is always left for last.

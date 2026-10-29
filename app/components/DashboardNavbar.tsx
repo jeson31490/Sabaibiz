@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getInitials, useUser, type UserRole } from "../context/UserContext";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactElement } from "react";
+import { useCanScanPayments } from "../../lib/useCanScanPayments";
 import { supabase } from "../../lib/supabase";
 import { Wordmark } from "./landing/SabaiMark";
 import { useNotifications } from "../../lib/useNotifications";
@@ -86,6 +87,7 @@ const ITEM = {
   today: { label: "Today", href: "/dashboard", icon: IconHome, exact: true },
   myDay: { label: "My day", href: "/dashboard", icon: IconHome, exact: true },
   invoices: { label: "Invoices", href: "/dashboard/invoices", icon: IconDocument },
+  transfers: { label: "Transfers", href: "/dashboard/transfers", icon: IconDocument },
   ingredients: { label: "Ingredients", href: "/dashboard/ingredients", icon: IconBasket },
   recipes: { label: "Recipes", href: "/dashboard/recipes", icon: IconDocument },
   prices: { label: "Price Analysis", href: "/dashboard/price-analysis", icon: IconChart },
@@ -95,17 +97,18 @@ const ITEM = {
 
 // The owner sees everything. A manager has "Today" instead of the profit dashboard. An employee gets a
 // short menu, and invoices only if allowed.
-function navItemsFor(role: UserRole | null, canScan: boolean | null): NavItem[] {
+function navItemsFor(role: UserRole | null, canScan: boolean | null, canScanPayments: boolean | null): NavItem[] {
   if (role === "employee") {
-    return [ITEM.myDay, ...(canScan ? [ITEM.invoices] : []), ITEM.settings];
+    return [ITEM.myDay, ...(canScan ? [ITEM.invoices] : []), ...(canScanPayments ? [ITEM.transfers] : []), ITEM.settings];
   }
   const home = role === "manager" ? ITEM.today : ITEM.dashboard;
-  return [home, ITEM.invoices, ITEM.ingredients, ...(role === "manager" ? [] : [ITEM.recipes]), ITEM.prices, ITEM.team, ITEM.settings];
+  return [home, ITEM.invoices, ITEM.transfers, ITEM.ingredients, ...(role === "manager" ? [] : [ITEM.recipes]), ITEM.prices, ITEM.team, ITEM.settings];
 }
 
 export default function DashboardNavbar() {
   const { user, role, canScan } = useUser();
-  const navItems = navItemsFor(role, canScan);
+  const canScanPayments = useCanScanPayments(role === "employee");
+  const navItems = navItemsFor(role, canScan, canScanPayments);
   // New absence declarations: only the owner and managers get them.
   const { unread } = useNotifications(role === "owner" || role === "manager");
   const pathname = usePathname();
