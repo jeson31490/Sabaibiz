@@ -48,4 +48,5 @@ Capacitor shell around the live site (`capacitor.config.ts`, `android/`, `ios/`,
 Plans/quotas, new landing (EN/TH), mobile tab bar, CSV export, privacy/terms, PWA manifest done. Still to do: payment provider, Sentry, transactional emails, LINE/Ocha/Grab, per-dish margins.
 
 ## Security
+Free accounts unused for 90 days (no sign-in, no invoices/scans/sales) get a warning e-mail at day 83 and are deleted 7 days later if still unused: `app/api/cron/purge-inactive` (daily, `?dry=1` to preview; never touches paid plans or team members; does nothing if Resend isn't configured).
 Strict CSP with per-request nonce in `proxy.ts` (root layout is dynamic via `connection()`); other headers in `next.config.ts`. New external hosts (scripts, APIs, images) must be added to the CSP there. Account deletion needs a password sign-in < 5 min old. Emailed links use `linkOrigin()` / `SITE_URL` (lib/site.ts).
