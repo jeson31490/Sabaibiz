@@ -39,7 +39,7 @@ export async function fetchPlanUsage(client: SupabaseClient): Promise<PlanUsage>
   let planId: PlanId = "free";
   let degraded = false;
   if (planRes.error) {
-    // Most likely 18_plans_and_quotas.sql hasn't been run yet. Don't lock everyone out of the product.
+    // Most likely 20_plans_and_quotas.sql hasn't been run yet. Don't lock everyone out of the product.
     console.error("billing: couldn't read business_plans", planRes.error.message);
     planId = "tracker";
     degraded = true;

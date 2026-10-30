@@ -18,7 +18,7 @@ Shop, cafe and restaurant owners across Thailand (starting in Koh Samui). The ap
 
 ## Pricing plans
 Source of truth: `lib/plans.ts` (prices, monthly scan quotas, team seats). The plan of each business lives in
-`business_plans` (`supabase/18_plans_and_quotas.sql`); only the server / service role can change it.
+`business_plans` (`supabase/20_plans_and_quotas.sql`); only the server / service role can change it.
 - Free: 0 baht, no Sabai scans (manual entry + your own Anthropic key only), no invites
 - Solo: 149 baht/month, 15 Sabai scans, up to 10 employees, no managers
 - Team: 249 baht/month, 25 scans, up to 20 employees, owner + 2 managers (recommended)
