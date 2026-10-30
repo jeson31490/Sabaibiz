@@ -1,12 +1,13 @@
 import { fetchMerchant, LoyverseError } from "../../../../../lib/loyverse";
 import { encryptToken, hasEncryptionKey } from "../../../../../lib/posCrypto";
-import { jsonError, requireOwner } from "../../../../../lib/posServer";
+import { isFreeBusiness, jsonError, LOYVERSE_PAID_MESSAGE, requireOwner } from "../../../../../lib/posServer";
 
 // Checks a Loyverse access token, then stores it encrypted. The token never goes back to the browser.
 export async function POST(request: Request) {
   const auth = await requireOwner(request);
   if (auth instanceof Response) return auth;
   const { ownerId, admin } = auth;
+  if (await isFreeBusiness(admin, ownerId)) return jsonError(LOYVERSE_PAID_MESSAGE, 402);
 
   if (!hasEncryptionKey()) {
     console.error("pos/loyverse/connect: POS_ENCRYPTION_KEY is missing or invalid");

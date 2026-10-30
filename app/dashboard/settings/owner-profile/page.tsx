@@ -105,7 +105,7 @@ export default function OwnerProfilePage() {
       return;
     }
     if (file.size > AVATAR_MAX_BYTES) {
-      setPhotoError("This image is larger than 5 MB. Please choose a smaller one.");
+      setPhotoError("This image is larger than 1 MB. Please choose a smaller one.");
       return;
     }
 
@@ -237,7 +237,7 @@ export default function OwnerProfilePage() {
               >
                 {uploading ? "Uploading…" : "Upload photo"}
               </button>
-              <p className="mt-2 text-xs text-teal-900/60">JPG or PNG, up to 5 MB.</p>
+              <p className="mt-2 text-xs text-teal-900/60">JPG or PNG, up to 1 MB.</p>
               {photoError && (
                 <p role="alert" className="mt-1 text-xs font-medium text-red-600">
                   {photoError}

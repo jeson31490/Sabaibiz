@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { LoyverseError } from "../../../../lib/loyverse";
 import { SyncError, syncLoyverseAccount } from "../../../../lib/loyverseSync";
 import { PAYMENT_SCAN_BUCKET, PAYMENT_SCAN_RETENTION_DAYS } from "../../../../lib/paymentScans";
-import { createAdminClient } from "../../../../lib/posServer";
+import { createAdminClient, isFreeBusiness } from "../../../../lib/posServer";
 
 // Daily sync of every connected Loyverse account, called by Vercel Cron (vercel.json), early
 // morning in Bangkok. "Sync sales now" in Settings still works any time in between.
@@ -65,6 +65,11 @@ export async function GET(request: Request) {
   const results = { accounts: connections.length, synced: 0, incomplete: 0, failed: 0, skipped: 0, imported: 0 };
   for (const { user_id: ownerId } of connections) {
     if (Date.now() > deadline) {
+      results.skipped++;
+      continue;
+    }
+    // Free accounts store no receipts (paid feature): leave them out.
+    if (await isFreeBusiness(admin, ownerId)) {
       results.skipped++;
       continue;
     }

@@ -1,7 +1,7 @@
 import { supabase } from "./supabase";
 
 export const AVATAR_BUCKET = "avatars";
-export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+export const AVATAR_MAX_BYTES = 1024 * 1024;
 export const AVATAR_TYPES = ["image/jpeg", "image/png"];
 
 type AuthUserLike = { id: string; user_metadata?: Record<string, unknown> | null };

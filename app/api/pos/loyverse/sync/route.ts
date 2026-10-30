@@ -1,6 +1,6 @@
 import { LoyverseError } from "../../../../../lib/loyverse";
 import { SyncError, syncLoyverseAccount } from "../../../../../lib/loyverseSync";
-import { jsonError, requireOwner } from "../../../../../lib/posServer";
+import { isFreeBusiness, jsonError, LOYVERSE_PAID_MESSAGE, requireOwner } from "../../../../../lib/posServer";
 
 // The first sync can fetch 90 days of receipts.
 export const maxDuration = 300;
@@ -14,6 +14,7 @@ export async function POST(request: Request) {
   const auth = await requireOwner(request);
   if (auth instanceof Response) return auth;
   const { ownerId, admin } = auth;
+  if (await isFreeBusiness(admin, ownerId)) return jsonError(LOYVERSE_PAID_MESSAGE, 402);
 
   try {
     return Response.json(await syncLoyverseAccount(admin, ownerId, deadline));

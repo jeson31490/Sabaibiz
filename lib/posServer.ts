@@ -50,3 +50,12 @@ export async function requireOwner(
 
   return { ownerId: auth.user.id, admin: createAdminClient()! };
 }
+
+/** True when the business is on the Free plan. Loyverse (and the receipts it brings) is a paid feature. A lookup error counts as "not free". */
+export async function isFreeBusiness(admin: SupabaseClient, ownerId: string): Promise<boolean> {
+  const { data, error } = await admin.from("business_plans").select("plan").eq("user_id", ownerId).maybeSingle();
+  if (error) return false;
+  return (data?.plan ?? "free") === "free";
+}
+
+export const LOYVERSE_PAID_MESSAGE = "Connecting Loyverse needs a paid plan. Choose a plan in Settings → Subscription.";
