@@ -70,11 +70,14 @@ export default function DeleteAccountPage() {
         </label>
         <input
           id="confirm"
+          name="delete-confirmation"
           value={text}
           onChange={(e) => setText(e.target.value)}
           autoComplete="off"
           className="w-full rounded-xl border border-teal-200 bg-white px-4 py-3 text-base text-teal-950"
         />
+        {/* Tells the browser's password manager which login the password belongs to, so it doesn't fill the box above. */}
+        <input type="email" name="username" autoComplete="username" value={email} readOnly hidden />
         <label htmlFor="password" className="block text-sm font-medium">
           Your password
         </label>
