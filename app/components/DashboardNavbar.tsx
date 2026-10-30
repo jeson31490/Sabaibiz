@@ -75,7 +75,7 @@ function IconGear({ className }: IconProps) {
   );
 }
 
-type NavItem = {
+export type NavItem = {
   label: string;
   href: string;
   icon: (props: IconProps) => ReactElement;
@@ -97,7 +97,7 @@ const ITEM = {
 
 // The owner sees everything. A manager has "Today" instead of the profit dashboard. An employee gets a
 // short menu, and invoices only if allowed.
-function navItemsFor(role: UserRole | null, canScan: boolean | null, canScanPayments: boolean | null): NavItem[] {
+export function navItemsFor(role: UserRole | null, canScan: boolean | null, canScanPayments: boolean | null): NavItem[] {
   if (role === "employee") {
     return [ITEM.myDay, ...(canScan ? [ITEM.invoices] : []), ...(canScanPayments ? [ITEM.transfers] : []), ITEM.settings];
   }

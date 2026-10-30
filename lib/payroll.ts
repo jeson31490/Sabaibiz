@@ -120,6 +120,5 @@ td{padding:6px 0;border-bottom:1px solid #eee}.n{text-align:right;font-variant-n
 <div class="net"><span>${L.net}</span><span>${money(slip.net)} ${L.baht}</span></div>
 <p class="small">${L.employer}: ${money(slip.employerSso)} ${L.baht}</p>
 <div class="sig">${L.sign}</div>
-<script>window.onload=function(){setTimeout(function(){window.print()},300)}</script>
 </body></html>`;
 }

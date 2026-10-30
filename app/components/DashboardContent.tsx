@@ -20,6 +20,8 @@ import { fetchPeriodSales, type PeriodSales } from "../../lib/sales";
 import { useUser } from "../context/UserContext";
 import { inputClass, labelClass } from "./FormField";
 import PriceAlertsCard from "./PriceAlertsCard";
+import ResultHero from "./ResultHero";
+import OwnerExtras from "./OwnerExtras";
 import AppHub, { type HubOutput, type HubSource } from "./AppHub";
 import SabaiMark from "./landing/SabaiMark";
 import DailySalesForm from "./DailySalesForm";
@@ -427,6 +429,21 @@ export default function DashboardContent() {
           </Link>
         )}
 
+        <ResultHero
+          result={kpis[2]}
+          revenue={kpis[0]}
+          costs={kpis[1]}
+          resultNumber={
+            sales !== "loading" && sales !== "error" && sales.connected && sales.synced && costs !== "loading" && costs !== "error"
+              ? sales.revenue - costs.total
+              : null
+          }
+          periodLabel={periodLabel}
+          refreshKey={refresh}
+        />
+
+        <OwnerExtras />
+
         <AppHub sources={hubSources} outputs={hubOutputs} />
 
         <section aria-label="Alerts">
@@ -505,7 +522,7 @@ export default function DashboardContent() {
       {/* Floating action button */}
       <Link
         href="/dashboard/invoices/scan"
-        className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2.5 rounded-full bg-gold-500 px-8 py-4 text-lg font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400"
+        className="fixed bottom-6 right-6 z-50 hidden md:inline-flex items-center gap-2.5 rounded-full bg-gold-500 px-8 py-4 text-lg font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400"
       >
         <IconCamera className="h-6 w-6" />
         Scan a new invoice

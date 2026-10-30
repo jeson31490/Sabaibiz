@@ -237,6 +237,7 @@ function PageThumbnail({
 export default function ScanInvoicePage() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const scanRef = useRef<AbortController | null>(null);
   const [pages, setPages] = useState<InvoicePage[]>([]);
   const [preparing, setPreparing] = useState(false);
@@ -461,6 +462,21 @@ export default function ScanInvoicePage() {
           aria-hidden
         />
 
+        {/* Opens the phone camera straight away (rear camera). */}
+        <input
+          ref={cameraRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={(e) => {
+            addFiles(Array.from(e.target.files ?? []));
+            e.target.value = "";
+          }}
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden
+        />
+
         {pages.length === 0 ? (
           <>
             <div
@@ -498,6 +514,14 @@ export default function ScanInvoicePage() {
                 className="mt-4 rounded-full bg-gold-500 px-8 py-4 text-lg font-semibold text-teal-950 shadow-soft transition hover:bg-gold-400 disabled:opacity-60"
               >
                 {preparing ? "Opening…" : "Choose a photo"}
+              </button>
+              <button
+                type="button"
+                onClick={() => cameraRef.current?.click()}
+                disabled={preparing}
+                className="mt-3 rounded-full border-2 border-teal-600 px-8 py-3 text-base font-semibold text-teal-900 transition hover:bg-teal-100/60 disabled:opacity-60 md:hidden"
+              >
+                📸 Take a photo
               </button>
             </div>
 

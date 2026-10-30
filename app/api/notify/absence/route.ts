@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { linkOrigin } from "../../../../lib/site";
 
 // E-mails the owner and managers when someone declares an absence or a sick day.
 // Called by the app right after the declaration is saved. Best effort: the in-app notification
@@ -124,7 +125,7 @@ export async function POST(request: Request) {
     absence.start_date === absence.end_date
       ? fmtDay(absence.start_date)
       : `${fmtDay(absence.start_date)} → ${fmtDay(absence.end_date)}`;
-  const link = `${new URL(request.url).origin}/dashboard/team`;
+  const link = `${linkOrigin(request)}/dashboard/team`;
   const text = [
     `${who} declared ${what} at ${businessName}.`,
     "",

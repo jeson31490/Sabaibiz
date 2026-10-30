@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { fetchPlanUsage } from "../../../../lib/billing";
+import { linkOrigin } from "../../../../lib/site";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -151,7 +152,7 @@ export async function POST(request: Request) {
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const origin = new URL(request.url).origin;
+  const origin = linkOrigin(request);
   const businessName: string | null = owner.user_metadata?.business_name ?? null;
 
   // Send the e-mail again for someone who hasn't joined yet (the link expired, or it got lost).

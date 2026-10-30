@@ -41,5 +41,11 @@ Loyverse first, then Ocha and others
 - Accent: gold #c4a35a; crimson #9e2b2f only for money out / warnings
 - Font: Prompt (Thai + Latin). Landing: `/` English, `/th` Thai (copy in lib/landingCopy.ts)
 
+## Mobile apps
+Capacitor shell around the live site (`capacitor.config.ts`, `android/`, `ios/`, see `MOBILE.md`). PWA: `public/sw.js`, `app/manifest.ts`, `app/components/PwaRegister.tsx`. Account deletion: `/api/account/delete`. Owner dashboard: `ResultHero.tsx` + `OwnerExtras.tsx` above `AppHub`; phone tab bar: `MobileTabBar.tsx`.
+
 ## Current status
 Plans/quotas, new landing (EN/TH), mobile tab bar, CSV export, privacy/terms, PWA manifest done. Still to do: payment provider, Sentry, transactional emails, LINE/Ocha/Grab, per-dish margins.
+
+## Security
+Strict CSP with per-request nonce in `proxy.ts` (root layout is dynamic via `connection()`); other headers in `next.config.ts`. New external hosts (scripts, APIs, images) must be added to the CSP there. Account deletion needs a password sign-in < 5 min old. Emailed links use `linkOrigin()` / `SITE_URL` (lib/site.ts).

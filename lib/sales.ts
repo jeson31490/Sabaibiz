@@ -71,3 +71,20 @@ export async function fetchPeriodSales(period: ResolvedPeriod): Promise<PeriodSa
     until: cut > 0 ? cutEnd.toISOString() : null,
   };
 }
+
+/**
+ * Revenue of each given Bangkok day (YYYY-MM-DD), for the trend line on the dashboard. One database call
+ * per day, run in parallel; a day that can't be read counts as 0 rather than breaking the whole line.
+ */
+export async function fetchDailyRevenue(days: string[]): Promise<number[]> {
+  return Promise.all(
+    days.map(async (day) => {
+      const { start, end } = bangkokInstants({ from: day, to: day });
+      try {
+        return (await totals(start, new Date(Math.min(end.getTime(), Date.now())))).revenue;
+      } catch {
+        return 0;
+      }
+    }),
+  );
+}
