@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SabaiBiz</string>
+    <string name="title_activity_main">SabaiBiz</string>
+    <string name="package_name">com.sabaibiz.app</string>
+    <string name="custom_url_scheme">com.sabaibiz.app</string>
+</resources>

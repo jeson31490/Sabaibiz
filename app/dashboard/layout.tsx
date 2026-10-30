@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "../../lib/supabase";
+import MobileTabBar from "../components/MobileTabBar";
 
 // Guards /dashboard and every page below it. The Supabase session is kept in the browser,
 // so the check runs client-side; data itself is protected by Supabase Row Level Security.
@@ -33,5 +34,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  return <div className="app-dark min-h-screen">{children}</div>;
+  return (
+    <div className="app-dark min-h-screen pb-20 md:pb-0">
+      {children}
+      <MobileTabBar />
+    </div>
+  );
 }

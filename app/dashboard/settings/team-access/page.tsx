@@ -1,5 +1,6 @@
 "use client";
 
+import { SITE_URL } from "../../../../lib/site";
 import { useEffect, useState, type FormEvent } from "react";
 import { SelectField, Field } from "../../../components/FormField";
 import SettingsShell from "../../../components/SettingsShell";
@@ -35,6 +36,13 @@ type LoadState =
 // Supabase returns these when supabase/03_team_members.sql hasn't been run yet.
 const isMissingTable = (e: unknown) =>
   typeof e === "object" && e !== null && ["42P01", "PGRST205"].includes((e as { code?: string }).code ?? "");
+
+// LINE share link: a plain reminder, with no secret in it. The invitation itself stays in the email;
+// the person signs up with the invited address and joins automatically.
+function lineShareUrl(email: string, business: string): string {
+  const text = `${business} invited you to SabaiBiz. Check your email (${email}) for the invitation, or sign up with that address: ${SITE_URL}/signup`;
+  return `https://line.me/R/share?text=${encodeURIComponent(text)}`;
+}
 
 export default function TeamAccessPage() {
   const { user } = useUser();
@@ -491,6 +499,17 @@ export default function TeamAccessPage() {
                               >
                                 {resendingId === m.id ? "Sending…" : "Resend invite"}
                               </button>
+                            )}
+                            {m.status === "pending" && (
+                              <a
+                                href={lineShareUrl(m.email, user.businessName)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={`Tell ${m.email} about the invitation on LINE`}
+                                className="rounded-full border border-teal-200 px-4 py-1.5 text-xs font-semibold text-teal-800 transition hover:bg-teal-50"
+                              >
+                                Share on LINE
+                              </a>
                             )}
                             <button
                               type="button"

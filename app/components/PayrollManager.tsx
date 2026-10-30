@@ -66,6 +66,8 @@ export default function PayrollManager() {
     }
     w.document.write(payslipHtml({ business, staff: s, month, slip, lang }));
     w.document.close();
+    // Printed from here: the strict security policy does not allow an inline script in the payslip itself.
+    setTimeout(() => w.print(), 400);
   }
 
   return (

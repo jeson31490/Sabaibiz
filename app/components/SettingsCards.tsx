@@ -185,6 +185,7 @@ export default function SettingsCards() {
 
   const cards = role === "owner" ? OWNER_CARDS : MEMBER_CARDS;
   return (
+    <>
     <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {cards.map(({ title, description, href, icon: Icon }) => (
         <Link
@@ -200,5 +201,11 @@ export default function SettingsCards() {
         </Link>
       ))}
     </div>
+    <p className="mt-10 text-center text-sm">
+      <Link href="/dashboard/settings/delete-account" className="text-teal-900/55 underline transition hover:text-red-600">
+        Delete my account
+      </Link>
+    </p>
+    </>
   );
 }

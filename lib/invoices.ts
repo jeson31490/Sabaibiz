@@ -117,6 +117,23 @@ export async function fetchCostsForPeriod(range: { from: string; to: string }): 
   return { total: satang / 100, count: rows.length };
 }
 
+/** Invoice costs per invoice date, for each day of the range (days without invoices are 0). */
+export async function fetchDailyCosts(days: string[]): Promise<number[]> {
+  if (days.length === 0) return [];
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("invoice_date,total")
+    .gte("invoice_date", days[0])
+    .lte("invoice_date", days[days.length - 1])
+    .neq("status", "error");
+  if (error) throw error;
+  const satang = new Map<string, number>();
+  for (const r of (data ?? []) as { invoice_date: string; total: number | string }[]) {
+    satang.set(r.invoice_date, (satang.get(r.invoice_date) ?? 0) + Math.round(Number(r.total) * 100));
+  }
+  return days.map((d) => (satang.get(d) ?? 0) / 100);
+}
+
 /**
  * Sum of the invoices scanned today (by created_at, in Bangkok time), whatever date is printed on them:
  * owners scan the day's receipts in the evening. Invoices that failed to read don't count.
