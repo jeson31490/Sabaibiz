@@ -17,8 +17,8 @@ import { dayStartBangkok, formatResetDate } from "../../../lib/plans";
 import { createAdminClient } from "../../../lib/posServer";
 import { supabase } from "../../../lib/supabase";
 
-// Reading a long invoice can take a while.
-export const maxDuration = 60;
+// A long invoice (50+ lines, several pages) takes about a minute to write out: leave room so it is never cut off.
+export const maxDuration = 180;
 
 const MODEL = "claude-sonnet-4-6";
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
