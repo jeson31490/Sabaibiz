@@ -86,9 +86,13 @@ async function toInvoicePage(file: File): Promise<InvoicePage> {
   };
 }
 
-async function scanInvoice(pages: InvoicePage[], signal: AbortSignal): Promise<ScanResult> {
+async function scanInvoice(
+  pages: InvoicePage[],
+  signal: AbortSignal,
+  onProduct: (product: ScanResult["products"][number]) => void,
+): Promise<ScanResult> {
   const { data } = await supabase.auth.getSession();
-  const res = await fetch("/api/scan-invoice", {
+  const res = await fetch("/api/scan-invoice?stream=1", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -97,9 +101,40 @@ async function scanInvoice(pages: InvoicePage[], signal: AbortSignal): Promise<S
     body: JSON.stringify({ pages: pages.map((p) => ({ data: p.dataUrl, mediaType: p.mediaType })) }),
     signal,
   });
-  const body = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(body?.error ?? "Something went wrong while reading your invoice.");
-  return body as ScanResult;
+  const generic = "Something went wrong while reading your invoice.";
+  // Refused before the reading starts (not signed in, quota, bad file…): a normal JSON answer.
+  if (!res.ok || !res.body || !(res.headers.get("content-type") ?? "").includes("ndjson")) {
+    const body = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(body?.error ?? generic);
+    return body as ScanResult;
+  }
+  // The reading: one JSON event per line. "product" while Claude writes, then "done" (or "error").
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result: ScanResult | null = null;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let newline: number;
+    while ((newline = buffer.indexOf("\n")) >= 0) {
+      const line = buffer.slice(0, newline).trim();
+      buffer = buffer.slice(newline + 1);
+      if (!line) continue;
+      let event: { type?: string; product?: ScanResult["products"][number]; result?: ScanResult; error?: string };
+      try {
+        event = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      if (event.type === "product" && event.product) onProduct(event.product);
+      else if (event.type === "done" && event.result) result = event.result;
+      else if (event.type === "error") throw new Error(event.error ?? generic);
+    }
+  }
+  if (!result) throw new Error("The reading was interrupted. Please try again.");
+  return result;
 }
 
 function TextField({
@@ -248,6 +283,12 @@ export default function ScanInvoicePage() {
   const [invoiceDate, setInvoiceDate] = useState("");
   const [scanError, setScanError] = useState<string | null>(null);
   const [extracted, setExtracted] = useState<ScanResult | null>(null);
+  // The lines already read while Claude is still writing (shown during "processing").
+  const [liveProducts, setLiveProducts] = useState<ScanResult["products"]>([]);
+  const liveEndRef = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    liveEndRef.current?.scrollIntoView({ block: "nearest" });
+  }, [liveProducts.length]);
   // Editable, so the owner can fix anything Sabai misread.
   const [supplier, setSupplier] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -340,9 +381,12 @@ export default function ScanInvoicePage() {
     setScanError(null);
     setSaveError(null);
     setExtracted(null);
+    setLiveProducts([]);
     setManualTotal("");
     try {
-      const result = await scanInvoice(pages, controller.signal);
+      const result = await scanInvoice(pages, controller.signal, (product) => {
+        if (!controller.signal.aborted) setLiveProducts((prev) => [...prev, product]);
+      });
       if (controller.signal.aborted) return;
       // DEBUG: the page shows result.invoice_total as the total; the line sum is only for comparison.
       console.log("[scan-invoice] API result", result);
@@ -620,10 +664,25 @@ export default function ScanInvoicePage() {
                       className="object-contain"
                     />
                   </div>
-                  <p className="mt-6 text-lg font-semibold text-teal-950">Processing…</p>
+                  <p className="mt-6 text-lg font-semibold text-teal-950">
+                    {liveProducts.length > 0 ? `${plural(liveProducts.length, "line")} read so far…` : "Processing…"}
+                  </p>
                   <p className="mt-1 text-sm text-teal-900/70">
                     Sabai is reading your invoice{pages.length > 1 ? ` (${plural(pages.length, "page")})` : ""}...
                   </p>
+                  {liveProducts.length > 0 && (
+                    <ul className="mt-4 max-h-56 w-full max-w-md space-y-1 overflow-y-auto rounded-xl border border-teal-100 bg-teal-50/50 p-3 text-left text-sm text-teal-950">
+                      {liveProducts.map((p, i) => (
+                        <li key={i} className="flex justify-between gap-3 motion-safe:animate-pulse [animation-iteration-count:1]">
+                          <span className="truncate">{p.name}</span>
+                          <span className="flex-none tabular-nums text-teal-900/70">
+                            {p.quantity} {p.unit}
+                          </span>
+                        </li>
+                      ))}
+                      <li ref={liveEndRef} aria-hidden />
+                    </ul>
+                  )}
                   <div className="mt-4 flex gap-1.5" aria-hidden>
                     {[0, 150, 300].map((delay) => (
                       <span

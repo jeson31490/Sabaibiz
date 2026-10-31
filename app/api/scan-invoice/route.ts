@@ -266,43 +266,70 @@ export async function POST(request: Request) {
   if (totalBytes > MAX_TOTAL_BYTES) return jsonError("These pages are too large together. The limit is 20MB.", 413);
   content.push({ type: "text", text: PROMPT });
 
+  const anthropic = ownKey ? new Anthropic({ apiKey: ownKey }) : client;
+  const params = {
+    model: MODEL,
+    max_tokens: 16000,
+    messages: [{ role: "user" as const, content }],
+    output_config: { format: zodOutputFormat(ScannedInvoiceSchema) },
+  };
+
+  // The page asks for ?stream=1: the lines are sent one by one as Claude writes them, so the owner sees
+  // the reading move instead of waiting a minute in front of a spinner. Without it: one JSON answer, as before.
+  if (new URL(request.url).searchParams.get("stream") === "1") {
+    return streamReading(anthropic, params, pages.length, token, ownKey !== null);
+  }
+
   try {
-    const response = await (ownKey ? new Anthropic({ apiKey: ownKey }) : client).messages.parse({
-      model: MODEL,
-      max_tokens: 16000,
-      messages: [{ role: "user", content }],
-      output_config: { format: zodOutputFormat(ScannedInvoiceSchema) },
-    });
+    const response = await anthropic.messages.parse(params);
+    const done = await finishReading(response, pages.length, token, ownKey !== null);
+    return Response.json(done.body, { status: done.status });
+  } catch (error) {
+    const failed = readingError(error, ownKey !== null);
+    if (!failed) throw error;
+    return Response.json(failed.body, { status: failed.status });
+  }
+}
 
-    const invoice = response.parsed_output;
-    // DEBUG: what Claude returned, and the line sum for comparison with the printed total.
-    console.log("[scan-invoice] Claude response", {
-      pages: pages.length,
-      stop_reason: response.stop_reason,
-      usage: { input_tokens: response.usage.input_tokens, output_tokens: response.usage.output_tokens },
-      subtotal_excl_vat: invoice?.subtotal_excl_vat,
-      vat_amount: invoice?.vat_amount,
-      invoice_total: invoice?.invoice_total,
-      invoice_total_label: invoice?.invoice_total_label,
-      sum_of_products: invoice ? Math.round(invoice.products.reduce((s, p) => s + p.quantity * p.unit_price, 0) * 100) / 100 : null,
-    });
-    console.log("[scan-invoice] parsed output", JSON.stringify(invoice, null, 2));
+type Finished = { status: number; body: Record<string, unknown> };
 
-    const succeeded = response.stop_reason !== "refusal" && !!invoice;
-    // Paid for either way, so recorded either way.
-    const scanId = await recordScan(token, {
-      pages: pages.length,
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
-      succeeded,
-      ownKey: ownKey !== null,
-    });
+/** Logs, records the cost and builds the answer from a finished reading (streamed or not). */
+async function finishReading(
+  response: { stop_reason: string | null; usage: { input_tokens: number; output_tokens: number }; parsed_output?: z.infer<typeof ScannedInvoiceSchema> | null },
+  pageCount: number,
+  token: string,
+  ownKey: boolean,
+): Promise<Finished> {
+  const invoice = response.parsed_output;
+  // DEBUG: what Claude returned, and the line sum for comparison with the printed total.
+  console.log("[scan-invoice] Claude response", {
+    pages: pageCount,
+    stop_reason: response.stop_reason,
+    usage: { input_tokens: response.usage.input_tokens, output_tokens: response.usage.output_tokens },
+    subtotal_excl_vat: invoice?.subtotal_excl_vat,
+    vat_amount: invoice?.vat_amount,
+    invoice_total: invoice?.invoice_total,
+    invoice_total_label: invoice?.invoice_total_label,
+    sum_of_products: invoice ? Math.round(invoice.products.reduce((s, p) => s + p.quantity * p.unit_price, 0) * 100) / 100 : null,
+  });
 
-    if (!succeeded || !invoice) {
-      return jsonError("We couldn't read this invoice. Please try a clearer photo.", 422);
-    }
+  const succeeded = response.stop_reason !== "refusal" && !!invoice;
+  // Paid for either way, so recorded either way.
+  const scanId = await recordScan(token, {
+    pages: pageCount,
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
+    succeeded,
+    ownKey,
+  });
 
-    return Response.json({
+  if (!succeeded || !invoice) {
+    return { status: 422, body: { error: "We couldn't read this invoice. Please try a clearer photo." } };
+  }
+
+  return {
+    status: 200,
+    body: {
       ...invoice,
       // Safety nets on top of the prompt: "Makro (บริษัท …)" → "Makro"; a tax ID is 13 digits or nothing.
       supplier_name: shortSupplierName(invoice.supplier_name ?? "") || null,
@@ -311,40 +338,152 @@ export async function POST(request: Request) {
       // Safety net on top of the prompt: a date read as the number is dropped, so an AUTO-… reference is made.
       invoice_number: cleanInvoiceNumber(invoice.invoice_number, invoice.invoice_date),
       // Drop lines the database would reject.
-      products: invoice.products
-        .filter((p) => p.name.trim() && p.quantity > 0 && p.unit_price >= 0)
-        // A unit that is itself a weight or volume (kg, กก, L…) always wins over the AI's reading.
-        .map((p) => ({ ...p, ...purchaseContent(p) })),
+      products: cleanProducts(invoice.products),
       scan_id: scanId,
-    } satisfies ScanResult);
-  } catch (error) {
-    if (error instanceof Anthropic.RateLimitError) {
-      return jsonError("Sabai is busy right now. Please try again in a minute.", 429);
-    }
-    if (error instanceof Anthropic.BadRequestError) {
-      console.error("scan-invoice: bad request", error.message);
-      return jsonError("We couldn't read this file. Please try another photo.", 400);
-    }
-    if (error instanceof Anthropic.AuthenticationError) {
-      if (ownKey) {
-        return Response.json(
-          { error: "Anthropic refused your AI key. Please save a new one in Settings → AI key.", code: "ai_key_invalid" },
-          { status: 402 },
-        );
-      }
-      console.error("scan-invoice: invalid ANTHROPIC_API_KEY");
-      return jsonError("Invoice reading is not configured correctly.", 500);
-    }
-    if (ownKey && error instanceof Anthropic.PermissionDeniedError) {
-      return Response.json(
-        { error: "Your AI account can't read invoices right now. Check your Anthropic credit in your provider account.", code: "ai_key_invalid" },
-        { status: 402 },
-      );
-    }
-    if (error instanceof Anthropic.APIError) {
-      console.error(`scan-invoice: API error ${error.status}`, error.message);
-      return jsonError("Invoice reading is temporarily unavailable. Please try again.", 502);
-    }
-    throw error;
+    } satisfies ScanResult,
+  };
+}
+
+type RawProduct = z.infer<typeof ScannedInvoiceSchema>["products"][number];
+
+function cleanProducts(products: RawProduct[]) {
+  return (
+    products
+      .filter((p) => p.name.trim() && p.quantity > 0 && p.unit_price >= 0)
+      // A unit that is itself a weight or volume (kg, กก, L…) always wins over the AI's reading.
+      .map((p) => ({ ...p, ...purchaseContent(p) }))
+  );
+}
+
+/** The answer to give for an error of the Anthropic call, or null when it is not one we know. */
+function readingError(error: unknown, ownKey: boolean): Finished | null {
+  if (error instanceof Anthropic.RateLimitError) {
+    return { status: 429, body: { error: "Sabai is busy right now. Please try again in a minute." } };
   }
+  if (error instanceof Anthropic.BadRequestError) {
+    console.error("scan-invoice: bad request", error.message);
+    return { status: 400, body: { error: "We couldn't read this file. Please try another photo." } };
+  }
+  if (error instanceof Anthropic.AuthenticationError) {
+    if (ownKey) {
+      return {
+        status: 402,
+        body: { error: "Anthropic refused your AI key. Please save a new one in Settings → AI key.", code: "ai_key_invalid" },
+      };
+    }
+    console.error("scan-invoice: invalid ANTHROPIC_API_KEY");
+    return { status: 500, body: { error: "Invoice reading is not configured correctly." } };
+  }
+  if (ownKey && error instanceof Anthropic.PermissionDeniedError) {
+    return {
+      status: 402,
+      body: {
+        error: "Your AI account can't read invoices right now. Check your Anthropic credit in your provider account.",
+        code: "ai_key_invalid",
+      },
+    };
+  }
+  if (error instanceof Anthropic.APIError) {
+    console.error(`scan-invoice: API error ${error.status}`, error.message);
+    return { status: 502, body: { error: "Invoice reading is temporarily unavailable. Please try again." } };
+  }
+  return null;
+}
+
+/**
+ * Cuts the growing JSON text Claude writes into finished product objects. The products come last in the
+ * schema, as an array of flat objects: once `"products":[` has been written, every `{ ... }` at the top of
+ * that array is one product. Strings are skipped so a brace inside a name can't confuse it.
+ */
+class ProductSplitter {
+  private text = "";
+  private pos = -1; // where scanning continues; -1 until the products array has started
+  private depth = 0;
+  private inString = false;
+  private escaped = false;
+  private start = -1;
+
+  push(delta: string): string[] {
+    this.text += delta;
+    if (this.pos === -1) {
+      const m = /"products"\s*:\s*\[/.exec(this.text);
+      if (!m) return [];
+      this.pos = m.index + m[0].length;
+    }
+    const out: string[] = [];
+    for (; this.pos < this.text.length; this.pos++) {
+      const ch = this.text[this.pos];
+      if (this.inString) {
+        if (this.escaped) this.escaped = false;
+        else if (ch === "\\") this.escaped = true;
+        else if (ch === '"') this.inString = false;
+        continue;
+      }
+      if (ch === '"') this.inString = true;
+      else if (ch === "{") {
+        if (this.depth === 0) this.start = this.pos;
+        this.depth++;
+      } else if (ch === "}") {
+        this.depth--;
+        if (this.depth === 0 && this.start >= 0) {
+          out.push(this.text.slice(this.start, this.pos + 1));
+          this.start = -1;
+        }
+      }
+    }
+    return out;
+  }
+}
+
+const ProductSchema = ScannedInvoiceSchema.shape.products.element;
+
+function streamReading(
+  anthropic: Anthropic,
+  params: Parameters<Anthropic["messages"]["stream"]>[0],
+  pageCount: number,
+  token: string,
+  ownKey: boolean,
+): Response {
+  const encoder = new TextEncoder();
+  const stream = anthropic.messages.stream(params);
+  const body = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (event: Record<string, unknown>) => {
+        try {
+          controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
+        } catch {
+          /* the page went away */
+        }
+      };
+      const splitter = new ProductSplitter();
+      stream.on("text", (delta) => {
+        for (const raw of splitter.push(delta)) {
+          try {
+            const parsed = ProductSchema.safeParse(JSON.parse(raw));
+            if (!parsed.success) continue;
+            const [product] = cleanProducts([parsed.data]);
+            if (product) send({ type: "product", product });
+          } catch {
+            /* half-written or odd line: the final answer will carry it */
+          }
+        }
+      });
+      try {
+        const final = await stream.finalMessage();
+        const done = await finishReading(final as Parameters<typeof finishReading>[0], pageCount, token, ownKey);
+        send(done.status === 200 ? { type: "done", result: done.body } : { type: "error", status: done.status, ...done.body });
+      } catch (error) {
+        const failed = readingError(error, ownKey);
+        if (!failed) console.error("scan-invoice: stream failed", error instanceof Error ? error.message : error);
+        send({ type: "error", status: failed?.status ?? 500, ...(failed?.body ?? { error: "Something went wrong while reading your invoice." }) });
+      }
+      controller.close();
+    },
+    cancel() {
+      stream.abort();
+    },
+  });
+  return new Response(body, {
+    headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store", "X-Accel-Buffering": "no" },
+  });
 }
