@@ -55,6 +55,19 @@ export function zonePrice(plan: PlanId, zone: ZoneId, cycle: CycleId): number {
   return Math.round(ZONE_PRICES[zone][plan] * (1 - c.discount));
 }
 
+/** "฿1,428" / "€96": the amount with the zone's symbol, on the side the currency is written. */
+export function formatMoney(amount: number, zone: ZoneId): string {
+  const z = ZONES[zone];
+  const n = amount.toLocaleString("en-US");
+  return z.after ? `${n} ${z.symbol}` : `${z.symbol}${n}`;
+}
+
+/** What is charged at the start of a billing cycle, in the zone's currency (the per-month price x the months). */
+export function zoneCycleTotal(plan: PlanId, zone: ZoneId, cycle: CycleId): number {
+  const c = CYCLES.find((x) => x.id === cycle) ?? CYCLES[0];
+  return zonePrice(plan, zone, cycle) * c.months;
+}
+
 /** Words of the "switch site" suggestion, written in the language it suggests. */
 export const SWITCH_BANNER: Partial<Record<Lang, { text: string; cta: string }>> = {
   fr: { text: "Vous êtes en France ? SabaiBiz existe en français.", cta: "Voir la version française" },

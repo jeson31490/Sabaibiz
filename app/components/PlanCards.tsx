@@ -3,14 +3,14 @@
 import { useState } from "react";
 import {
   CYCLES,
-  cycleTotal,
-  monthlyPriceOnCycle,
   PAYMENTS_ENABLED,
   PLAN_ORDER,
   PLANS,
   type CycleId,
   type PlanId,
 } from "../../lib/plans";
+import { formatMoney, zoneCycleTotal, zonePrice } from "../../lib/regions";
+import { useZone } from "../../lib/useCountry";
 import { usePlanUsage } from "./usePlanUsage";
 
 function IconCheck() {
@@ -24,6 +24,8 @@ function IconCheck() {
 /** The four plans side by side, with the billing cycle switch. Marks the business's current plan. */
 export default function PlanCards({ showCycleSwitch = true }: { showCycleSwitch?: boolean }) {
   const { usage } = usePlanUsage();
+  // One currency only: the one of the visitor's country (no switch).
+  const { zone, ready } = useZone("th");
   const [cycle, setCycle] = useState<CycleId>("monthly");
   const currentId: PlanId | null = usage?.plan.id ?? null;
   const currentIndex = currentId ? PLAN_ORDER.indexOf(currentId) : -1;
@@ -60,7 +62,7 @@ export default function PlanCards({ showCycleSwitch = true }: { showCycleSwitch?
         {PLAN_ORDER.map((id, index) => {
           const plan = PLANS[id];
           const current = id === currentId;
-          const perMonth = monthlyPriceOnCycle(plan, cycle);
+          const perMonth = zonePrice(id, zone, cycle);
           const months = CYCLES.find((c) => c.id === cycle)?.months ?? 1;
           return (
             <div
@@ -77,11 +79,13 @@ export default function PlanCards({ showCycleSwitch = true }: { showCycleSwitch?
               <h2 className="text-xl font-bold">{plan.name}</h2>
               <p className={`mt-1 text-sm ${current ? "text-teal-900/70" : "text-teal-900/65"}`}>{plan.tag.en}</p>
               <p className="mt-5 flex items-baseline gap-1">
-                <span className="text-4xl font-bold tracking-tight">{perMonth === 0 ? "0" : perMonth.toLocaleString("en-US")} ฿</span>
+                <span className="text-4xl font-bold tracking-tight">{ready ? formatMoney(perMonth, zone) : "–"}</span>
                 <span className={`text-sm ${current ? "text-teal-900/70" : "text-teal-900/60"}`}>/month</span>
               </p>
               <p className={`mt-1 h-5 text-xs ${current ? "text-teal-900/70" : "text-teal-900/55"}`}>
-                {perMonth > 0 && months > 1 ? `${cycleTotal(plan, cycle).toLocaleString("en-US")} ฿ billed every ${months} months` : ""}
+                {ready && perMonth > 0 && months > 1
+                  ? `${formatMoney(zoneCycleTotal(id, zone, cycle), zone)} billed ${months === 12 ? "yearly" : `every ${months} months`}`
+                  : ""}
               </p>
 
               <ul className="mt-5 flex-1 space-y-3 text-sm">

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import SettingsShell from "../../../components/SettingsShell";
 import { usePlanUsage } from "../../../components/usePlanUsage";
+import { formatMoney, zonePrice } from "../../../../lib/regions";
+import { useZone } from "../../../../lib/useCountry";
 
 function formatDate(d: Date) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Bangkok" });
@@ -10,6 +12,7 @@ function formatDate(d: Date) {
 
 export default function SubscriptionDetailsPage() {
   const { usage } = usePlanUsage();
+  const { zone, ready } = useZone("th");
 
   const used = usage?.scansUsed ?? 0;
   const limit = usage?.plan.scansPerMonth ?? 0;
@@ -29,7 +32,7 @@ export default function SubscriptionDetailsPage() {
               <div>
                 <dt className="text-sm font-medium text-teal-900/65">Price</dt>
                 <dd className="mt-1 text-xl font-bold text-teal-950">
-                  {usage.plan.priceMonthly === 0 ? "Free" : `${usage.plan.priceMonthly.toLocaleString("en-US")} ฿ / month`}
+                  {usage.plan.priceMonthly === 0 ? "Free" : ready ? `${formatMoney(zonePrice(usage.plan.id, zone, "monthly"), zone)} / month` : "–"}
                 </dd>
               </div>
             </dl>

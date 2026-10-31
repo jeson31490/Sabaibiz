@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { isZone, zoneForCountry, type ZoneId } from "./regions";
+import { zoneForCountry, type ZoneId } from "./regions";
 
-const ZONE_KEY = "sabai_zone";
 let countryPromise: Promise<string | null> | null = null;
 
 /** Asks the server once per page load which country the request comes from. */
@@ -15,47 +14,32 @@ function fetchCountry(): Promise<string | null> {
   return countryPromise;
 }
 
-/** Detected country (null until known, or when unknown). Never throws. */
-export function useCountry(): string | null {
-  const [country, setCountry] = useState<string | null>(null);
+/** Detected country, and whether the lookup has finished (country is null while loading and when unknown). Never throws. */
+export function useCountryState(): { country: string | null; loaded: boolean } {
+  const [state, setState] = useState<{ country: string | null; loaded: boolean }>({ country: null, loaded: false });
   useEffect(() => {
     let off = false;
     void fetchCountry().then((c) => {
-      if (!off) setCountry(c);
+      if (!off) setState({ country: c, loaded: true });
     });
     return () => {
       off = true;
     };
   }, []);
-  return country;
+  return state;
 }
 
-/** The price zone to show: the visitor's own choice if any, else the detected country, else the page's default. */
-export function useZone(defaultZone: ZoneId): { zone: ZoneId; choose: (z: ZoneId) => void } {
-  const country = useCountry();
-  const [chosen, setChosen] = useState<ZoneId | null>(null);
-  useEffect(() => {
-    let off = false;
-    void Promise.resolve().then(() => {
-      try {
-        const z = localStorage.getItem(ZONE_KEY);
-        if (!off && isZone(z)) setChosen(z);
-      } catch {
-        /* storage blocked: fine */
-      }
-    });
-    return () => {
-      off = true;
-    };
-  }, []);
-  const zone = chosen ?? (country ? zoneForCountry(country) : defaultZone);
-  const choose = (z: ZoneId) => {
-    setChosen(z);
-    try {
-      localStorage.setItem(ZONE_KEY, z);
-    } catch {
-      /* ignore */
-    }
-  };
-  return { zone, choose };
+/** Detected country (null until known, or when unknown). Never throws. */
+export function useCountry(): string | null {
+  return useCountryState().country;
+}
+
+/**
+ * The price zone to show: always the one of the visitor's country (there is no way to pick another currency).
+ * `ready` is false until the country is known, so pages can avoid flashing the wrong prices.
+ * When the country can't be detected, the page's default zone is used.
+ */
+export function useZone(defaultZone: ZoneId): { zone: ZoneId; ready: boolean } {
+  const { country, loaded } = useCountryState();
+  return { zone: country ? zoneForCountry(country) : defaultZone, ready: loaded };
 }

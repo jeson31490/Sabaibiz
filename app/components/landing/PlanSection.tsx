@@ -5,7 +5,7 @@ import { useState } from "react";
 import type { L2 } from "../../../lib/landing2";
 import type { Lang } from "../../../lib/landingCopy";
 import { PLAN_ORDER, PLANS } from "../../../lib/plans";
-import { ZONE_ORDER, ZONES, zonePrice } from "../../../lib/regions";
+import { formatMoney, ZONES, zoneCycleTotal, zonePrice } from "../../../lib/regions";
 import { useZone } from "../../../lib/useCountry";
 
 const THEME = { bg: "#072A2B", fg: "#F4EBD8", chip: "rgba(244,235,216,.14)" };
@@ -15,7 +15,7 @@ const PAY_WORLD = ["Card", "Apple Pay", "Google Pay"];
 
 export default function PlanSection({ t, lang, signup }: { t: L2["pricing"]; lang: Lang; signup: string }) {
   const [yearly, setYearly] = useState(false);
-  const { zone, choose } = useZone(lang === "fr" ? "eu" : "th");
+  const { zone, ready } = useZone(lang === "fr" ? "eu" : "th");
   const z = ZONES[zone];
   return (
     <div>
@@ -35,22 +35,7 @@ export default function PlanSection({ t, lang, signup }: { t: L2["pricing"]; lan
         </div>
       </div>
 
-      <div className="mt-5 flex flex-col items-center gap-2">
-        <div role="group" aria-label="Currency" className="inline-flex flex-wrap justify-center gap-1 rounded-full border border-[#F4EBD8]/20 p-1 text-xs font-semibold">
-          {ZONE_ORDER.map((id) => (
-            <button
-              key={id}
-              type="button"
-              aria-pressed={zone === id}
-              onClick={() => choose(id)}
-              className={`rounded-full px-3 py-1.5 ${zone === id ? "bg-[#19D3B5] text-[#031B1C]" : "text-[#F4EBD8]/80 hover:text-white"}`}
-            >
-              {ZONES[id].label}
-            </button>
-          ))}
-        </div>
-        <p className="max-w-md text-center text-xs text-[#F4EBD8]/60">{t.regionNote}</p>
-      </div>
+      <p className="mx-auto mt-5 max-w-md text-center text-xs text-[#F4EBD8]/60">{t.regionNote}</p>
 
       <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {PLAN_ORDER.map((id) => {
@@ -70,11 +55,11 @@ export default function PlanSection({ t, lang, signup }: { t: L2["pricing"]; lan
               <p className="mt-1 min-h-10 text-sm opacity-80">{plan.tag[lang]}</p>
               <p className="mt-4 flex items-baseline gap-1">
                 {!z.after && <span className="text-2xl font-bold text-[#E8B94A]">{z.symbol}</span>}
-                <span className="font-display text-5xl font-extrabold tracking-tight text-[#E8B94A]">{price.toLocaleString("en-US")}</span>
+                <span className="font-display text-5xl font-extrabold tracking-tight text-[#E8B94A]">{ready ? price.toLocaleString("en-US") : "–"}</span>
                 {z.after && <span className="text-xl font-bold text-[#E8B94A]">{z.symbol}</span>}
                 <span className="text-sm opacity-70">{t.perMonth}</span>
               </p>
-              <p className="h-5 text-xs opacity-70">{yearly && price > 0 ? t.yearlyNote : ""}</p>
+              <p className="h-5 text-xs opacity-70">{ready && yearly && price > 0 ? `${formatMoney(zoneCycleTotal(id, zone, "yearly"), zone)} ${t.yearlyNote}` : ""}</p>
               <Link
                 href={signup}
                 className={`mt-4 block rounded-full px-5 py-3 text-center text-sm font-bold transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8B94A] ${plan.popular ? "bg-[#E8B94A] text-[#031B1C]" : "border border-[#F4EBD8]/30 text-[#F4EBD8]"}`}
