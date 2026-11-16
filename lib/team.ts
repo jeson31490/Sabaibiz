@@ -245,3 +245,31 @@ export async function fetchTeamPeople(): Promise<TeamPerson[]> {
   if (!res.ok) throw new Error(body?.error ?? "We couldn't load your team.");
   return (body.people ?? []) as TeamPerson[];
 }
+
+export type StaffLink = { memberId: string; label: string; link: string; expiresInDays: number; member: TeamMember | null };
+
+async function staffLinkRequest(payload: Record<string, unknown>): Promise<StaffLink> {
+  const { data } = await supabase.auth.getSession();
+  const res = await fetch("/api/team/invite-link", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+    body: JSON.stringify(payload),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.error ?? "We couldn't create the link. Please try again.");
+  return { ...body, member: body.member ? toMember(body.member as RawMember) : null } as StaffLink;
+}
+
+/** A person without e-mail: the owner gives a name and gets a one-time link to share (phone number + code sign-in). */
+export const createStaffLink = (name: string, role: TeamRole, canScan = true) => staffLinkRequest({ name, role, canScan });
+
+/** A new link for someone: their first link expired, or they forgot their code. */
+export const renewStaffLink = (memberId: string) => staffLinkRequest({ memberId });
+
+/** Names the owner gave to link-invited people (member id -> name). Empty if the table isn't there yet. */
+export async function fetchStaffLabels(): Promise<Map<string, string>> {
+  const { data, error } = await supabase.from("team_invite_links").select("member_id, label, created_at").order("created_at", { ascending: true });
+  const map = new Map<string, string>();
+  if (!error) for (const r of data ?? []) map.set(r.member_id as string, r.label as string);
+  return map;
+}
