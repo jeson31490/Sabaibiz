@@ -16,6 +16,7 @@ import "@fontsource/ibm-plex-mono/latin-500.css";
 import "./globals.css";
 import { UserProvider } from "./context/UserContext";
 import PwaRegister from "./components/PwaRegister";
+import FaqChat from "./components/FaqChat";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://sabaibiz.com"),
@@ -45,6 +46,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <UserProvider>{children}</UserProvider>
         <PwaRegister />
+        <FaqChat />
       </body>
     </html>
   );

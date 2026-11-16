@@ -8,6 +8,7 @@ import { useUser } from "../context/UserContext";
 import { supabase } from "../../lib/supabase";
 import Turnstile, { CAPTCHA_ENABLED } from "../components/Turnstile";
 import { AUTH, authLang } from "../../lib/authCopy";
+import { normalizePhone, staffEmail, staffPassword } from "../../lib/staff";
 
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-teal-200 bg-white px-4 py-3 text-base text-teal-950 placeholder:text-teal-900/40 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-600/20";
@@ -31,6 +32,8 @@ function LoginForm() {
   const [submitting, setSubmitting] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaKey, setCaptchaKey] = useState(0);
+  // Staff without an e-mail sign in with their phone number and 6-digit code (?staff=1 or the link under the form).
+  const [staff, setStaff] = useState(useSearchParams().get("staff") === "1");
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -42,16 +45,27 @@ function LoginForm() {
     setError(null);
     setSubmitting(true);
 
+    let credentials = { email: String(data.get("email") ?? "").trim(), password: String(data.get("password") ?? "") };
+    if (staff) {
+      const phone = normalizePhone(String(data.get("phone")));
+      const code = String(data.get("code")).trim();
+      if (!phone || !/^\d{6}$/.test(code)) {
+        setSubmitting(false);
+        setError("Enter your phone number and your 6-digit code.");
+        return;
+      }
+      credentials = { email: staffEmail(phone), password: staffPassword(phone, code) };
+    }
+
     const { data: result, error: signInError } = await supabase.auth.signInWithPassword({
-      email: String(data.get("email")).trim(),
-      password: String(data.get("password")),
+      ...credentials,
       options: { captchaToken: captchaToken ?? undefined },
     });
 
     if (signInError) {
       setSubmitting(false);
       setCaptchaKey((k) => k + 1);
-      setError(signInError.message);
+      setError(staff ? "Wrong phone number or code." : signInError.message);
       return;
     }
 
@@ -73,6 +87,19 @@ function LoginForm() {
         </h1>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+          {staff ? (
+            <>
+              <div>
+                <label htmlFor="phone" className={labelClass}>Phone number</label>
+                <input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" required className={inputClass} />
+              </div>
+              <div>
+                <label htmlFor="code" className={labelClass}>6-digit code</label>
+                <input id="code" name="code" type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="current-password" required className={inputClass} />
+              </div>
+            </>
+          ) : (
+            <>
           <div>
             <label htmlFor="email" className={labelClass}>
               {t.email}
@@ -99,6 +126,8 @@ function LoginForm() {
               className={inputClass}
             />
           </div>
+            </>
+          )}
 
           {error && (
             <p role="alert" className="text-sm font-medium text-red-600">
@@ -118,6 +147,13 @@ function LoginForm() {
         </form>
 
         <p className="mt-5 text-center text-sm">
+          <button type="button" onClick={() => { setStaff((v) => !v); setError(null); }} className="font-semibold text-teal-700 hover:text-teal-900">
+            {staff ? "Sign in with e-mail" : "Staff sign in (phone + code)"}
+          </button>
+        </p>
+
+        {!staff && (
+        <p className="mt-3 text-center text-sm">
           <Link
             href={`/forgot-password${q}`}
             className="font-semibold text-teal-700 hover:text-teal-900"
@@ -125,6 +161,7 @@ function LoginForm() {
             {t.forgot}
           </Link>
         </p>
+        )}
 
         <p className="mt-6 text-center text-sm text-teal-900/70">
           {t.noAccount}{" "}

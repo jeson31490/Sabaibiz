@@ -4,7 +4,7 @@
  * Public contact address. Leave null until a mailbox exists (e.g. hello@sabaibiz.com): while it is
  * null the "Contact" link is simply not shown, rather than pointing somewhere that doesn't answer.
  */
-export const CONTACT_EMAIL: string | null = null;
+export const CONTACT_EMAIL: string | null = "sabaybiz@gmail.com";
 
 /** Public address of the site. Links in emails must use this, never the address the request came from. */
 export const SITE_URL = "https://sabaibiz.com";

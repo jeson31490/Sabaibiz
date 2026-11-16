@@ -4,6 +4,8 @@ import { SITE_URL } from "../../../../lib/site";
 import { useEffect, useState, type FormEvent } from "react";
 import { SelectField, Field } from "../../../components/FormField";
 import SettingsShell from "../../../components/SettingsShell";
+import StaffLinkCard from "../../../components/StaffLinkCard";
+import { friendlyContact, isStaffEmail } from "../../../../lib/staff";
 import { useUser } from "../../../context/UserContext";
 import { supabase } from "../../../../lib/supabase";
 import {
@@ -16,6 +18,10 @@ import {
   setTeamMemberCanScanPayments,
   setTeamMemberSchedule,
   fetchWorkSchedules,
+  createStaffLink,
+  renewStaffLink,
+  fetchStaffLabels,
+  type StaffLink,
   type WorkSchedule,
   type TeamMember,
   type TeamRole,
@@ -60,6 +66,12 @@ export default function TeamAccessPage() {
   const [scanError, setScanError] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [resendError, setResendError] = useState<string | null>(null);
+  // Staff without e-mail: invited with a one-time link (phone number + code).
+  const [linkForm, setLinkForm] = useState(false);
+  const [linkBusy, setLinkBusy] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [linkResult, setLinkResult] = useState<StaffLink | null>(null);
+  const [labels, setLabels] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +87,8 @@ export default function TeamAccessPage() {
         if (next.status === "owner") {
           const planned = await fetchWorkSchedules();
           if (!cancelled) setSchedules(planned);
+          const names = await fetchStaffLabels();
+          if (!cancelled) setLabels(names);
         }
         if (!cancelled) setLoad(next);
       } catch (e) {
@@ -117,6 +131,40 @@ export default function TeamAccessPage() {
       setInviteError(err instanceof Error ? err.message : "We couldn't send the invitation. Please try again.");
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleCreateLink(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    const role = String(data.get("linkRole")).toLowerCase() as TeamRole;
+    setLinkBusy("new");
+    setLinkError(null);
+    try {
+      const res = await createStaffLink(String(data.get("linkName")), role, role === "manager" || data.get("linkCanScan") === "on");
+      setLinkResult(res);
+      setLabels((prev) => new Map(prev).set(res.memberId, res.label));
+      if (res.member) {
+        const member = res.member;
+        setLoad((prev) => (prev.status === "owner" ? { ...prev, members: [...prev.members, member] } : prev));
+      }
+      setLinkForm(false);
+    } catch (err) {
+      setLinkError(err instanceof Error ? err.message : "We couldn't create the link.");
+    } finally {
+      setLinkBusy(null);
+    }
+  }
+
+  async function handleRenewLink(member: TeamMember) {
+    setLinkBusy(member.id);
+    setLinkError(null);
+    try {
+      setLinkResult(await renewStaffLink(member.id));
+    } catch (err) {
+      setLinkError(err instanceof Error ? err.message : "We couldn't create the link.");
+    } finally {
+      setLinkBusy(null);
     }
   }
 
@@ -255,7 +303,37 @@ export default function TeamAccessPage() {
             >
               Invite a team member
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLinkForm((v) => !v);
+                setLinkError(null);
+              }}
+              aria-expanded={linkForm}
+              className="ml-3 rounded-full border border-teal-200 bg-white px-6 py-4 text-lg font-semibold text-teal-900 transition hover:bg-teal-50"
+            >
+              Invite with a link (no e-mail)
+            </button>
           </div>
+
+          {linkForm && (
+            <form onSubmit={handleCreateLink} className="mt-6 max-w-xl space-y-4 rounded-2xl border border-teal-100 bg-white p-6 shadow-card">
+              <p className="text-sm text-teal-900/75">
+                For people without an e-mail address. You get a link to send with any app; they enter their phone number and choose a 6-digit code.
+              </p>
+              <Field id="linkName" label="Name" placeholder="e.g. Noi" required maxLength={60} autoComplete="off" />
+              <SelectField id="linkRole" label="Role" options={INVITE_ROLES} defaultValue="Employee" />
+              <label className="flex items-center gap-2 text-sm text-teal-900">
+                <input type="checkbox" name="linkCanScan" defaultChecked /> May scan and see invoices (employees)
+              </label>
+              {linkError && <p role="alert" className="text-sm font-medium text-red-600">{linkError}</p>}
+              <button disabled={linkBusy === "new"} className="rounded-full bg-gold-500 px-8 py-3 font-semibold text-teal-950 hover:bg-gold-400 disabled:opacity-60">
+                {linkBusy === "new" ? "Creating…" : "Create link"}
+              </button>
+            </form>
+          )}
+          {linkError && !linkForm && <p role="alert" className="mt-4 text-sm font-medium text-red-600">{linkError}</p>}
+          {linkResult && <StaffLinkCard link={linkResult.link} label={linkResult.label} days={linkResult.expiresInDays} business={user.businessName} onClose={() => setLinkResult(null)} />}
 
           {inviting && (
             <form
@@ -380,7 +458,7 @@ export default function TeamAccessPage() {
                   </tr>
                   {load.members.map((m) => (
                     <tr key={m.id} className="transition hover:bg-teal-50/60">
-                      <td className="px-6 py-4 font-medium text-teal-950">{m.email}</td>
+                      <td className="px-6 py-4 font-medium text-teal-950">{friendlyContact(m.email, labels.get(m.id))}</td>
                       <td className="px-6 py-4 text-teal-900/80">{roleLabel(m.role)}</td>
                       <td className="px-6 py-4">
                         {m.role === "manager" ? (
@@ -489,7 +567,17 @@ export default function TeamAccessPage() {
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-2">
-                            {m.status === "pending" && (
+                            {isStaffEmail(m.email) && (
+                              <button
+                                type="button"
+                                onClick={() => handleRenewLink(m)}
+                                disabled={linkBusy === m.id}
+                                className="rounded-full border border-teal-200 px-4 py-1.5 text-xs font-semibold text-teal-800 transition hover:bg-teal-50 disabled:cursor-wait disabled:opacity-60"
+                              >
+                                {linkBusy === m.id ? "…" : m.status === "pending" ? "New link" : "Reset code"}
+                              </button>
+                            )}
+                            {m.status === "pending" && !isStaffEmail(m.email) && (
                               <button
                                 type="button"
                                 onClick={() => handleResend(m)}
@@ -500,7 +588,7 @@ export default function TeamAccessPage() {
                                 {resendingId === m.id ? "Sending…" : "Resend invite"}
                               </button>
                             )}
-                            {m.status === "pending" && (
+                            {m.status === "pending" && !isStaffEmail(m.email) && (
                               <a
                                 href={lineShareUrl(m.email, user.businessName)}
                                 target="_blank"
