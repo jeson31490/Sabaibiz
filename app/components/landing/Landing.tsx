@@ -50,10 +50,13 @@ export default function Landing({ lang }: { lang: Lang }) {
                 </Link>
               ))}
             </div>
-            <Link href={login} className="hidden px-3 py-2 text-sm font-semibold text-[#F4EBD8]/90 hover:text-white sm:block">
+            <Link
+              href={login}
+              className="whitespace-nowrap rounded-full border border-[#F4EBD8]/35 px-3.5 py-2 text-sm font-semibold text-[#F4EBD8] hover:bg-white/5 sm:border-transparent sm:px-3 sm:text-[#F4EBD8]/90 sm:hover:bg-transparent sm:hover:text-white"
+            >
               {t.nav.signIn}
             </Link>
-            <Link href={signup} className="rounded-full bg-[#E8B94A] px-4 py-2 text-sm font-bold text-[#031B1C] hover:brightness-110">
+            <Link href={signup} className="hidden rounded-full bg-[#E8B94A] px-4 py-2 text-sm font-bold text-[#031B1C] hover:brightness-110 sm:block">
               {t.nav.start}
             </Link>
             <MobileMenu

@@ -9,7 +9,8 @@ export function proxy(request: NextRequest) {
 
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
+    // challenges.cloudflare.com is ignored where 'strict-dynamic' works; it keeps the captcha loading on old phone WebViews.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://challenges.cloudflare.com${dev ? " 'unsafe-eval'" : ""}`,
     // Styles: React sets style="" attributes in many places, which a nonce cannot cover.
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://*.supabase.co",

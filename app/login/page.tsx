@@ -7,6 +7,7 @@ import { Suspense, useState, type FormEvent } from "react";
 import { useUser } from "../context/UserContext";
 import { supabase } from "../../lib/supabase";
 import Turnstile, { CAPTCHA_ENABLED } from "../components/Turnstile";
+import AuthTabs from "../components/AuthTabs";
 import { AUTH, authLang } from "../../lib/authCopy";
 import { normalizePhone, staffEmail, staffPassword } from "../../lib/staff";
 
@@ -25,7 +26,7 @@ export default function LoginPage() {
 function LoginForm() {
   const lang = authLang(useSearchParams().get("lang"));
   const t = AUTH[lang];
-  const q = lang === "th" ? "?lang=th" : "";
+  const q = lang === "en" ? "" : `?lang=${lang}`;
   const router = useRouter();
   const { updateUser } = useUser();
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +83,7 @@ function LoginForm() {
       <Link href="/" aria-label="SabaiBiz"><Wordmark size={44} id="auth" className="text-3xl" /></Link>
 
       <div className="mt-6 w-full max-w-md rounded-2xl border border-teal-100 bg-white p-8 shadow-card">
+        <AuthTabs active="login" lang={lang} />
         <h1 className="text-center text-3xl font-bold tracking-tight text-teal-950">
           {t.loginTitle}
         </h1>
@@ -135,7 +137,7 @@ function LoginForm() {
             </p>
           )}
 
-          <Turnstile onToken={setCaptchaToken} resetKey={captchaKey} />
+          <Turnstile onToken={setCaptchaToken} resetKey={captchaKey} lang={lang} />
 
           <button
             type="submit"
