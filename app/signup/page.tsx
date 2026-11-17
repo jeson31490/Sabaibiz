@@ -8,6 +8,7 @@ import { useUser } from "../context/UserContext";
 import { supabase } from "../../lib/supabase";
 import { isDisposableEmail } from "../../lib/disposableEmail";
 import Turnstile, { CAPTCHA_ENABLED } from "../components/Turnstile";
+import AuthTabs from "../components/AuthTabs";
 import { AUTH, authLang } from "../../lib/authCopy";
 
 const COUNTRIES = [
@@ -36,7 +37,7 @@ export default function SignupPage() {
 function SignupForm() {
   const lang = authLang(useSearchParams().get("lang"));
   const t = AUTH[lang];
-  const q = lang === "th" ? "?lang=th" : "";
+  const q = lang === "en" ? "" : `?lang=${lang}`;
   const router = useRouter();
   const { updateUser } = useUser();
   const [error, setError] = useState<string | null>(null);
@@ -109,6 +110,7 @@ function SignupForm() {
       <Link href="/" aria-label="SabaiBiz"><Wordmark size={44} id="auth" className="text-3xl" /></Link>
 
       <div className="mt-6 w-full max-w-md rounded-2xl border border-teal-100 bg-white p-8 shadow-card">
+        <AuthTabs active="signup" lang={lang} />
         <h1 className="text-center text-3xl font-bold tracking-tight text-teal-950">
           {t.signupTitle}
         </h1>
@@ -212,7 +214,7 @@ function SignupForm() {
             </p>
           )}
 
-          <Turnstile onToken={setCaptchaToken} resetKey={captchaKey} />
+          <Turnstile onToken={setCaptchaToken} resetKey={captchaKey} lang={lang} />
 
           <button
             type="submit"
